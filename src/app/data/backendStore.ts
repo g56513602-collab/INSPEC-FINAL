@@ -13,7 +13,7 @@ import type {
   ExecutionRecord,
   ComponentRule,
 } from './types';
-import * as api from '../api/client';
+import * as api from '@/api/client';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GERENCIADOR DE SINCRONIZAÇÃO
