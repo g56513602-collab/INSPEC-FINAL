@@ -16,6 +16,18 @@ import type {
 } from './types';
 import { INITIAL_INSPECTION_COMPONENTS, INITIAL_SEVERITY_OPTIONS } from './checklistRules';
 import { isUtmCoord, utmToLatLng } from '@/utils/coordinateUtils';
+import backendStore from './backendStore';
+
+const REQUIRE_BACKEND = (import.meta.env.VITE_REQUIRE_BACKEND === 'true');
+
+function dispatchBackendFailure(err: any, context: string) {
+  console.error('[Backend Failure]', context, err);
+  window.dispatchEvent(new CustomEvent('backend-sync-failed', { detail: { error: err, context } }));
+}
+
+function dispatchBackendSuccess(context: string) {
+  window.dispatchEvent(new CustomEvent('backend-sync-success', { detail: { context, timestamp: Date.now() } }));
+}
 
 const STORAGE_KEY = 'inspec360_v22_data';
 const LOG_RESET_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
@@ -481,6 +493,7 @@ export function getUserById(id: string): SystemUser | undefined {
 
 export function startOrder(orderId: string, userId: string, userName: string): ServiceOrder | null {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   const order = store.serviceOrders.find((o) => o.id === orderId);
   if (!order) return null;
 
@@ -592,6 +605,17 @@ export function startOrder(orderId: string, userId: string, userName: string): S
 
   addSystemLog({ level: 'info', module: 'Ordens', message: `Ordem ${orderId} iniciada por ${userName}`, userId, userName });
   saveStore(store);
+
+  // Try persist to backend (best-effort). In REQUIRE_BACKEND mode, revert on failure.
+  if (REQUIRE_BACKEND) {
+    backendStore.serviceOrderStore.update(order.id, order as any).then(() => {
+      dispatchBackendSuccess('startOrder');
+    }).catch((err) => {
+      // revert
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'startOrder');
+    });
+  }
   return order;
 }
 
@@ -685,6 +709,7 @@ export function saveInspectionProgress(orderId: string, inspectionData: Inspecti
   const store = getStore();
   const order = store.serviceOrders.find((o) => o.id === orderId);
   if (!order) return;
+  const snapshot = JSON.parse(JSON.stringify(store));
   order.inspectionData = inspectionData;
   // Sincronizar progresso no InspectionRecord
   if (store.inspectionRecords) {
@@ -694,6 +719,16 @@ export function saveInspectionProgress(orderId: string, inspectionData: Inspecti
     }
   }
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    const inspRec = store.inspectionRecords?.find((r) => r.orderId === orderId);
+    if (inspRec) {
+      backendStore.inspectionStore.update(inspRec.id, inspRec).then(() => dispatchBackendSuccess('saveInspectionProgress')).catch((err) => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+        dispatchBackendFailure(err, 'saveInspectionProgress');
+      });
+    }
+  }
 }
 
 export function addPhoto(orderId: string, photoBase64: string, componentId?: string, anomalyId?: string): void {
@@ -701,6 +736,7 @@ export function addPhoto(orderId: string, photoBase64: string, componentId?: str
   const order = store.serviceOrders.find((o) => o.id === orderId);
   if (!order) return;
   if (!order.photos) order.photos = [];
+  const snapshot = JSON.parse(JSON.stringify(store));
   order.photos.push(photoBase64);
 
   // Adicionar foto organizada no banco de inspeções/execuções
@@ -729,6 +765,24 @@ export function addPhoto(orderId: string, photoBase64: string, componentId?: str
   }
 
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    const inspRec = store.inspectionRecords?.find((r) => r.orderId === orderId);
+    if (inspRec) {
+      backendStore.inspectionStore.update(inspRec.id, inspRec).then(() => dispatchBackendSuccess('addPhoto')).catch((err) => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+        dispatchBackendFailure(err, 'addPhoto');
+      });
+    } else {
+      const execRec = store.executionRecords?.find((r) => r.orderId === orderId);
+      if (execRec) {
+        backendStore.executionStore.update(execRec.id, execRec).then(() => dispatchBackendSuccess('addPhoto_exec')).catch((err) => {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+          dispatchBackendFailure(err, 'addPhoto_exec');
+        });
+      }
+    }
+  }
 }
 
 // ─── Supervisor helpers ──────────────────────────────────────────────────────
@@ -754,21 +808,38 @@ function fillStructureCoordinates(structure: Structure): Structure {
 
 export function addStructure(structure: Structure): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   store.structures.push(fillStructureCoordinates(structure));
   addSystemLog({ level: 'info', module: 'Estruturas', message: `Nova estrutura criada: ${structure.name}` });
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.structureStore.create(structure).then(() => dispatchBackendSuccess('addStructure')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'addStructure');
+    });
+  }
 }
 
 export function updateStructure(updated: Structure): void {
   const store = getStore();
   const filled = fillStructureCoordinates(updated);
+  const snapshot = JSON.parse(JSON.stringify(store));
   const idx = store.structures.findIndex((s) => s.id === updated.id);
   if (idx >= 0) store.structures[idx] = filled;
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.structureStore.update(updated.id, updated).then(() => dispatchBackendSuccess('updateStructure')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'updateStructure');
+    });
+  }
 }
 
 export function addServiceOrder(order: ServiceOrder): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   store.serviceOrders.push(order);
 
   // Criar registro inicial no banco correspondente
@@ -804,27 +875,58 @@ export function addServiceOrder(order: ServiceOrder): void {
 
   addSystemLog({ level: 'info', module: 'Ordens', message: `Nova ordem criada: ${order.id} (${order.type})` });
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.serviceOrderStore.create(order).then(() => dispatchBackendSuccess('addServiceOrder')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'addServiceOrder');
+    });
+  }
 }
 
 export function updateServiceOrder(updated: ServiceOrder): void {
   const store = getStore();
   const idx = store.serviceOrders.findIndex((o) => o.id === updated.id);
+  const snapshot = JSON.parse(JSON.stringify(store));
   if (idx >= 0) store.serviceOrders[idx] = updated;
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.serviceOrderStore.update(updated.id, updated).then(() => dispatchBackendSuccess('updateServiceOrder')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'updateServiceOrder');
+    });
+  }
 }
 
 export function addUser(user: SystemUser): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   store.users.push(user);
   addSystemLog({ level: 'info', module: 'Usuários', message: `Novo usuário criado: ${user.name} (${user.role})` });
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.userStore.create(user).then(() => dispatchBackendSuccess('addUser')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'addUser');
+    });
+  }
 }
 
 export function updateUser(updated: SystemUser): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   const idx = store.users.findIndex((u) => u.id === updated.id);
   if (idx >= 0) store.users[idx] = updated;
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.userStore.update(updated.id, updated).then(() => dispatchBackendSuccess('updateUser')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'updateUser');
+    });
+  }
 }
 
 export function updateUserProfile(userId: string, updates: Partial<SystemUser>): void {
@@ -932,20 +1034,44 @@ export function deleteChecklistComponent(id: string): void {
 
 export function deleteStructure(id: string): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   store.structures = store.structures.filter((s) => s.id !== id);
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.structureStore.delete(id).then(() => dispatchBackendSuccess('deleteStructure')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'deleteStructure');
+    });
+  }
 }
 
 export function deleteServiceOrder(id: string): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   store.serviceOrders = store.serviceOrders.filter((o) => o.id !== id);
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.serviceOrderStore.delete(id).then(() => dispatchBackendSuccess('deleteServiceOrder')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'deleteServiceOrder');
+    });
+  }
 }
 
 export function deleteUser(id: string): void {
   const store = getStore();
+  const snapshot = JSON.parse(JSON.stringify(store));
   store.users = store.users.filter((u) => u.id !== id);
   saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.userStore.delete(id).then(() => dispatchBackendSuccess('deleteUser')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'deleteUser');
+    });
+  }
 }
 
 // ─── Severity helpers ────────────────────────────────────────────────────────
