@@ -53,4 +53,15 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/service-orders/:id - Excluir ordem
+router.delete('/:id', async (req, res) => {
+  try {
+    await queries.deleteServiceOrder(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('❌ Erro ao excluir ordem:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

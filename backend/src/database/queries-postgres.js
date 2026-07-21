@@ -75,22 +75,61 @@ export async function getStructureById(id) {
   return await getQueryOne('SELECT * FROM structures WHERE id = $1', [id]);
 }
 
-export async function createStructure(data) {
+function normalizeStructureForInsert(data) {
   const id = data.id || uuidv4();
-  const createdAt = new Date().toISOString();
-  
+  const createdAt = data.createdAt || new Date().toISOString();
+
+  return {
+    id,
+    name: data.name,
+    type: data.type,
+    classe: data.classe || '',
+    coordX: data.coordX,
+    coordY: data.coordY,
+    progressiva: data.progressiva || 0,
+    deflexao: data.deflexao || null,
+    alturaUtil: data.alturaUtil || null,
+    vanFrente: data.vanFrente || null,
+    cotaCentro: data.cotaCentro || null,
+    lt: data.lt,
+    voltage: data.voltage,
+    cadeiaCondutor: data.cadeiaCondutor || '',
+    qtdCadeias: data.qtdCadeias || 0,
+    cadeiaParaRaios: data.cadeiaParaRaios || '',
+    qtdCadeiasPR: data.qtdCadeiasPR || 0,
+    estruturaCritica: data.estruturaCritica || 0,
+    status: data.status || 'pendente',
+    observation: data.observation && String(data.observation).toLowerCase() !== 'nan' ? data.observation : '',
+    createdBy: data.createdBy || 'admin',
+    createdAt,
+  };
+}
+
+export async function createStructure(data) {
+  const normalized = normalizeStructureForInsert(data);
+
   await runSQL(
     `INSERT INTO structures (id, name, type, classe, "coordX", "coordY", progressiva, deflexao, 
      "alturaUtil", "vanFrente", "cotaCentro", lt, voltage, "cadeiaCondutor", "qtdCadeias", 
      "cadeiaParaRaios", "qtdCadeiasPR", "estruturaCritica", status, observation, "createdBy", "createdAt")
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
-    [id, data.name, data.type, data.classe || '', data.coordX, data.coordY, data.progressiva,
-     data.deflexao, data.alturaUtil, data.vanFrente, data.cotaCentro, data.lt, data.voltage,
-     data.cadeiaCondutor || '', data.qtdCadeias || 0, data.cadeiaParaRaios || '', data.qtdCadeiasPR || 0,
-     data.estruturaCritica || 0, 'pendente', data.observation || '', data.createdBy, createdAt]
+    [normalized.id, normalized.name, normalized.type, normalized.classe, normalized.coordX, normalized.coordY,
+     normalized.progressiva, normalized.deflexao, normalized.alturaUtil, normalized.vanFrente, normalized.cotaCentro,
+     normalized.lt, normalized.voltage, normalized.cadeiaCondutor, normalized.qtdCadeias,
+     normalized.cadeiaParaRaios, normalized.qtdCadeiasPR, normalized.estruturaCritica,
+     normalized.status, normalized.observation, normalized.createdBy, normalized.createdAt]
   );
   
-  return await getStructureById(id);
+  return await getStructureById(normalized.id);
+}
+
+export async function bulkCreateStructures(items) {
+  const createdStructures = [];
+  for (const item of items) {
+    const created = await createStructure(item);
+    createdStructures.push(created);
+  }
+  return createdStructures;
 }
 
 export async function updateStructure(id, data) {
@@ -110,28 +149,74 @@ export async function updateStructure(id, data) {
   return await getStructureById(id);
 }
 
+export async function deleteStructure(id) {
+  await runSQL('DELETE FROM structures WHERE id = $1', [id]);
+  return true;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // COMPONENTS (REGRAS)
 // ═════════════════════════════════════════════════════════════════════════════
 
 export async function getAllComponents() {
-  return await getQuery('SELECT * FROM "componentRules" ORDER BY name ASC');
+  const rows = await getQuery('SELECT * FROM "componentRules" ORDER BY name ASC');
+  return rows.map((row) => ({
+    ...row,
+    anomalies: parseComponentAnomalies(row.anomalies),
+  }));
 }
 
 export async function getComponentById(id) {
-  return await getQueryOne('SELECT * FROM "componentRules" WHERE id = $1', [id]);
+  const row = await getQueryOne('SELECT * FROM "componentRules" WHERE id = $1', [id]);
+  if (!row) return null;
+  return { ...row, anomalies: parseComponentAnomalies(row.anomalies) };
+}
+
+function parseComponentAnomalies(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // not valid JSON, fall back to comma-separated string
+  }
+  return raw.toString().split(',').map((item) => item.trim()).filter(Boolean);
 }
 
 export async function createComponent(data) {
   const id = data.id || uuidv4();
+  const anomalies = JSON.stringify(data.anomalies || []);
   
   await runSQL(
     `INSERT INTO "componentRules" (id, name, icon, description, anomalies)
      VALUES ($1, $2, $3, $4, $5)`,
-    [id, data.name, data.icon || '', data.description || '', data.anomalies || '']
+    [id, data.name, data.icon || '', data.description || '', anomalies]
   );
   
   return await getComponentById(id);
+}
+
+export async function updateComponent(id, data) {
+  const fields = [];
+  const params = [];
+  let paramIndex = 1;
+
+  if (data.name) { fields.push(`name = $${paramIndex}`); params.push(data.name); paramIndex++; }
+  if (data.icon) { fields.push(`icon = $${paramIndex}`); params.push(data.icon); paramIndex++; }
+  if (data.description !== undefined) { fields.push(`description = $${paramIndex}`); params.push(data.description); paramIndex++; }
+  if (data.anomalies !== undefined) { fields.push(`anomalies = $${paramIndex}`); params.push(JSON.stringify(data.anomalies)); paramIndex++; }
+
+  if (fields.length === 0) return await getComponentById(id);
+
+  params.push(id);
+  await runSQL(`UPDATE "componentRules" SET ${fields.join(', ')} WHERE id = $${paramIndex}`, params);
+  return await getComponentById(id);
+}
+
+export async function deleteComponent(id) {
+  await runSQL('DELETE FROM "componentRules" WHERE id = $1', [id]);
+  return true;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -187,6 +272,11 @@ export async function updateServiceOrder(id, data) {
   
   await runSQL(`UPDATE "serviceOrders" SET ${fields.join(', ')} WHERE id = $${paramIndex}`, params);
   return await getServiceOrderById(id);
+}
+
+export async function deleteServiceOrder(id) {
+  await runSQL('DELETE FROM "serviceOrders" WHERE id = $1', [id]);
+  return true;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

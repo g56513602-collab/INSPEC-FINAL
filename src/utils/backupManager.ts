@@ -256,14 +256,14 @@ export function downloadFile(content: string, filename: string, type: 'json' | '
 /**
  * Importa dados de arquivo JSON
  */
-export async function importDataFromFile(file: File): Promise<AppData | null> {
+export async function importDataFromFile(file: File): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        const data = JSON.parse(content) as AppData;
+        const data = JSON.parse(content);
         console.log('✅ Dados importados com sucesso');
         resolve(data);
       } catch (error) {

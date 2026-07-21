@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { getStore, saveStore } from '@/app/data/store';
 import type { AppData } from '@/app/data/types';
+import * as api from '@/api/client';
 import {
   exportDataAsJSON,
   exportStructuresAsCSV,
@@ -148,13 +149,36 @@ export function BackupPanel({ onClose }: BackupPanelProps) {
     try {
       setIsProcessing(true);
       const data = await importDataFromFile(file);
-      if (data) {
-        saveStore(data);
-        showToast('✅ Dados importados com sucesso! Recarregando...', 'success');
+
+      if (Array.isArray(data)) {
+        const response = await api.structuresAPI.importMany(data);
+        const imported = response?.imported ?? response?.structures?.length ?? data.length;
+        showToast(`✅ ${imported} estruturas importadas com sucesso! Recarregando...`, 'success');
         setTimeout(() => window.location.reload(), 1500);
+        return;
       }
+
+      if (data && typeof data === 'object' && 'structures' in data && Array.isArray((data as any).structures)) {
+        const appData = data as AppData;
+        const hasBackupFields = Object.keys(appData).some((key) => ['users', 'serviceOrders', 'components', 'inspectionRecords', 'executionRecords'].includes(key));
+
+        if (hasBackupFields) {
+          saveStore(appData);
+          showToast('✅ Dados importados com sucesso! Recarregando...', 'success');
+          setTimeout(() => window.location.reload(), 1500);
+          return;
+        }
+
+        const response = await api.structuresAPI.importMany(appData.structures);
+        const imported = response?.imported ?? response?.structures?.length ?? appData.structures.length;
+        showToast(`✅ ${imported} estruturas importadas com sucesso! Recarregando...`, 'success');
+        setTimeout(() => window.location.reload(), 1500);
+        return;
+      }
+
+      throw new Error('Formato de arquivo não suportado. Use um backup JSON ou um array de estruturas.');
     } catch (error) {
-      showToast(`❌ Erro ao importar: ${error}`, 'error');
+      showToast(`❌ Erro ao importar: ${error instanceof Error ? error.message : error}`, 'error');
     } finally {
       setIsProcessing(false);
     }

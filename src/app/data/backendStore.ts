@@ -136,6 +136,11 @@ export const userStore = {
     syncManager.notifyListeners({ users: [user] });
     return user;
   },
+
+  async delete(id: string): Promise<void> {
+    await api.usersAPI.delete(id);
+    syncManager.notifyListeners({ users: [{ id }] });
+  },
 };
 
 /**
@@ -171,6 +176,11 @@ export const structureStore = {
     syncManager.notifyListeners({ structures: [structure] });
     return structure;
   },
+
+  async delete(id: string): Promise<void> {
+    await api.structuresAPI.delete(id);
+    syncManager.notifyListeners({ structures: [{ id }] });
+  },
 };
 
 /**
@@ -199,6 +209,17 @@ export const componentStore = {
     const component = await api.componentsAPI.create(componentData);
     syncManager.notifyListeners({ components: [component] });
     return component;
+  },
+
+  async update(id: string, componentData: Partial<ComponentRule>): Promise<ComponentRule> {
+    const component = await api.componentsAPI.update(id, componentData);
+    syncManager.notifyListeners({ components: [component] });
+    return component;
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.componentsAPI.delete(id);
+    syncManager.notifyListeners({ components: [{ id }] });
   },
 };
 
@@ -234,6 +255,11 @@ export const serviceOrderStore = {
     const order = await api.serviceOrdersAPI.update(id, orderData);
     syncManager.notifyListeners({ serviceOrders: [order] });
     return order;
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.serviceOrdersAPI.delete(id);
+    syncManager.notifyListeners({ serviceOrders: [{ id }] });
   },
 };
 
@@ -327,6 +353,12 @@ export const executionStore = {
   },
 };
 
+export const adminStore = {
+  async cleanData(secret: string): Promise<any> {
+    return api.adminAPI.cleanData(secret);
+  },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SINCRONIZAÇÃO COMPLETA
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,6 +385,7 @@ export const backendStore = {
   serviceOrderStore,
   inspectionStore,
   executionStore,
+  adminStore,
   syncAllData,
 };
 

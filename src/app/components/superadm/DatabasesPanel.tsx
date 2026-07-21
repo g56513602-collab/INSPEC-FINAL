@@ -24,6 +24,7 @@ import {
   getInspectionRecords,
   getExecutionRecords,
 } from '../../data/store';
+import { backendStore } from '../../data/backendStore';
 import type {
   SystemUser,
   Structure,
@@ -57,18 +58,35 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
   const [activeBank, setActiveBank] = useState<ActiveBank>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  function refresh() {
-    const store = getStore();
-    setUsers(store.users);
-    setStructures(store.structures);
-    setComponents(store.checklistComponents ?? []);
-    setInspections(getInspectionRecords());
-    setExecutions(getExecutionRecords());
-    setOrders(store.serviceOrders);
+  async function refresh() {
+    try {
+      const [users, structures, components, orders, inspections, executions] = await Promise.all([
+        backendStore.userStore.getAll(),
+        backendStore.structureStore.getAll(),
+        backendStore.componentStore.getAll(),
+        backendStore.serviceOrderStore.getAll(),
+        backendStore.inspectionStore.getAll(),
+        backendStore.executionStore.getAll(),
+      ]);
+      setUsers(users);
+      setStructures(structures);
+      setComponents(components);
+      setOrders(orders);
+      setInspections(inspections);
+      setExecutions(executions);
+    } catch (error) {
+      const store = getStore();
+      setUsers(store.users);
+      setStructures(store.structures);
+      setComponents(store.checklistComponents ?? []);
+      setOrders(store.serviceOrders);
+      setInspections(getInspectionRecords());
+      setExecutions(getExecutionRecords());
+    }
     onRefresh?.();
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh().catch(() => {}); }, []);
 
   const banks = [
     {

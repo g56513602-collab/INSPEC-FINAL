@@ -39,4 +39,29 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PUT /api/components/:id - Atualizar componente
+router.put('/:id', async (req, res) => {
+  try {
+    const component = await queries.updateComponent(req.params.id, req.body);
+    if (!component) {
+      return res.status(404).json({ error: 'Componente não encontrado' });
+    }
+    res.json(component);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar componente:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/components/:id - Excluir componente
+router.delete('/:id', async (req, res) => {
+  try {
+    await queries.deleteComponent(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('❌ Erro ao excluir componente:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

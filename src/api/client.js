@@ -29,7 +29,16 @@ async function fetchAPI(endpoint, options = {}) {
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    return await response.json();
+    if (response.status === 204) {
+      return null;
+    }
+
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+
+    return JSON.parse(text);
   } catch (error) {
     console.error(`[API Error] ${endpoint}:`, error);
     throw error;
@@ -69,6 +78,12 @@ export const usersAPI = {
       body: JSON.stringify(userData),
     });
   },
+
+  async delete(id) {
+    return fetchAPI(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,10 +106,23 @@ export const structuresAPI = {
     });
   },
 
+  async importMany(structures) {
+    return fetchAPI('/structures/import', {
+      method: 'POST',
+      body: JSON.stringify(structures),
+    });
+  },
+
   async update(id, structureData) {
     return fetchAPI(`/structures/${id}`, {
       method: 'PUT',
       body: JSON.stringify(structureData),
+    });
+  },
+
+  async delete(id) {
+    return fetchAPI(`/structures/${id}`, {
+      method: 'DELETE',
     });
   },
 };
@@ -116,6 +144,19 @@ export const componentsAPI = {
     return fetchAPI('/components', {
       method: 'POST',
       body: JSON.stringify(componentData),
+    });
+  },
+
+  async update(id, componentData) {
+    return fetchAPI(`/components/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(componentData),
+    });
+  },
+
+  async delete(id) {
+    return fetchAPI(`/components/${id}`, {
+      method: 'DELETE',
     });
   },
 };
@@ -144,6 +185,12 @@ export const serviceOrdersAPI = {
     return fetchAPI(`/service-orders/${id}`, {
       method: 'PUT',
       body: JSON.stringify(orderData),
+    });
+  },
+
+  async delete(id) {
+    return fetchAPI(`/service-orders/${id}`, {
+      method: 'DELETE',
     });
   },
 };
@@ -319,6 +366,15 @@ export const syncAPI = {
 // EXPORTAR TUDO COMO MÓDULO
 // ─────────────────────────────────────────────────────────────────────────────
 
+export const adminAPI = {
+  async cleanData(secret) {
+    return fetchAPI('/admin/clean-data', {
+      method: 'POST',
+      body: JSON.stringify({ secret }),
+    });
+  },
+};
+
 export default {
   usersAPI,
   structuresAPI,
@@ -328,4 +384,5 @@ export default {
   executionsAPI,
   photosAPI,
   syncAPI,
+  adminAPI,
 };

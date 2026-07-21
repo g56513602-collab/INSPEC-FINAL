@@ -76,4 +76,15 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/users/:id - Excluir usuário
+router.delete('/:id', async (req, res) => {
+  try {
+    await queries.deleteUser(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('❌ Erro ao excluir usuário:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
