@@ -29,6 +29,11 @@ interface CompletedOrdersTabProps {
   getTechnicianName: (id: string) => string;
 }
 
+function collectOrderPhotos(order: ServiceOrder) {
+  const componentPhotos = order.inspectionData?.components.flatMap((c) => c.photos || []) || [];
+  return Array.from(new Set([...(order.photos || []), ...componentPhotos]));
+}
+
 function generateOrderPDF(
   order: ServiceOrder,
   structure: Structure | undefined,
@@ -72,10 +77,11 @@ function generateOrderPDF(
       )
       .join('') || '';
 
+  const photos = collectOrderPhotos(order);
   const photosHtml =
-    order.photos && order.photos.length > 0
+    photos.length > 0
       ? `<div class="photos-grid">
-          ${order.photos
+          ${photos
             .map(
               (p, i) => `<div class="photo-item">
             <img src="${p}" alt="Foto ${i + 1}" onerror="this.style.display='none'" />
@@ -345,9 +351,9 @@ function generateOrderPDF(
   }
 
   ${
-    order.photos && order.photos.length > 0
+    photos.length > 0
       ? `<div class="section">
-    <div class="section-title"><span class="section-icon">📷</span> Registros Fotográficos (${order.photos.length} foto${order.photos.length !== 1 ? 's' : ''})</div>
+    <div class="section-title"><span class="section-icon">📷</span> Registros Fotográficos (${photos.length} foto${photos.length !== 1 ? 's' : ''})</div>
     ${photosHtml}
   </div>`
       : ''
@@ -654,13 +660,13 @@ export function CompletedOrdersTab({
           )}
 
           {/* Photos */}
-          {selectedOrder.photos && selectedOrder.photos.length > 0 && (
+          {selectedPhotos.length > 0 && (
             <Card className="p-4">
               <h3 className="text-sm mb-3 flex items-center gap-2" style={{ color: '#193A2A' }}>
-                <Camera className="w-4 h-4" /> Registros Fotográficos ({selectedOrder.photos.length})
+                <Camera className="w-4 h-4" /> Registros Fotográficos ({selectedPhotos.length})
               </h3>
               <div className="grid grid-cols-3 gap-2">
-                {selectedOrder.photos.map((p, i) => (
+                {selectedPhotos.map((p, i) => (
                   <div key={i} className="relative group">
                     <img
                       src={p}
@@ -668,7 +674,7 @@ export function CompletedOrdersTab({
                       className="w-full h-28 object-cover rounded-lg border border-gray-100"
                     />
                     <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded">
-                      {i + 1}/{selectedOrder.photos!.length}
+                      {i + 1}/{selectedPhotos.length}
                     </div>
                   </div>
                 ))}

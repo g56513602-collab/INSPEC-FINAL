@@ -381,6 +381,12 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
       showToast('Preencha nome e linha de transmissão.');
       return;
     }
+
+    if (structureForm.coordX === 0 && structureForm.coordY === 0) {
+      showToast('Informe coordenadas UTM válidas antes de salvar.');
+      return;
+    }
+
     const geo = isUtmCoord(structureForm.coordX, structureForm.coordY)
       ? utmToLatLng(structureForm.coordX, structureForm.coordY)
       : { lat: structureForm.coordY, lng: structureForm.coordX };
@@ -393,7 +399,10 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     };
     try {
       if (editingStructure) {
-        await backendStore.structureStore.update(editingStructure.id, { ...editingStructure, ...structureData });
+        await backendStore.structureStore.update(editingStructure.id, {
+          ...editingStructure,
+          ...structureData,
+        });
         showToast('Estrutura atualizada com sucesso!');
       } else {
         await backendStore.structureStore.create({
@@ -407,7 +416,8 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
       await refresh();
       setShowStructureForm(false);
     } catch (error) {
-      showToast('Erro ao salvar estrutura.');
+      console.error('Erro ao salvar estrutura:', error);
+      showToast('Erro ao salvar estrutura. Verifique a conexão com o backend.');
     }
   }
 

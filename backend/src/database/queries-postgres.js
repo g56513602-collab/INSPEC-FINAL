@@ -38,13 +38,13 @@ export async function updateUser(id, data) {
   const params = [];
   let paramIndex = 1;
   
-  if (data.name) { fields.push(`name = $${paramIndex}`); params.push(data.name); paramIndex++; }
-  if (data.email) { fields.push(`email = $${paramIndex}`); params.push(data.email); paramIndex++; }
-  if (data.password) { fields.push(`password = $${paramIndex}`); params.push(data.password); paramIndex++; }
-  if (data.role) { fields.push(`role = $${paramIndex}`); params.push(data.role); paramIndex++; }
-  if (data.status) { fields.push(`status = $${paramIndex}`); params.push(data.status); paramIndex++; }
-  if (data.phone) { fields.push(`phone = $${paramIndex}`); params.push(data.phone); paramIndex++; }
-  if (data.avatar) { fields.push(`avatar = $${paramIndex}`); params.push(data.avatar); paramIndex++; }
+  if (data.name !== undefined) { fields.push(`name = $${paramIndex}`); params.push(data.name); paramIndex++; }
+  if (data.email !== undefined) { fields.push(`email = $${paramIndex}`); params.push(data.email); paramIndex++; }
+  if (data.password !== undefined) { fields.push(`password = $${paramIndex}`); params.push(data.password); paramIndex++; }
+  if (data.role !== undefined) { fields.push(`role = $${paramIndex}`); params.push(data.role); paramIndex++; }
+  if (data.status !== undefined) { fields.push(`status = $${paramIndex}`); params.push(data.status); paramIndex++; }
+  if (data.phone !== undefined) { fields.push(`phone = $${paramIndex}`); params.push(data.phone); paramIndex++; }
+  if (data.avatar !== undefined) { fields.push(`avatar = $${paramIndex}`); params.push(data.avatar); paramIndex++; }
   
   fields.push(`"lastLogin" = $${paramIndex}`);
   params.push(lastLogin);
@@ -137,10 +137,25 @@ export async function updateStructure(id, data) {
   const params = [];
   let paramIndex = 1;
   
-  if (data.name) { fields.push(`name = $${paramIndex}`); params.push(data.name); paramIndex++; }
-  if (data.status) { fields.push(`status = $${paramIndex}`); params.push(data.status); paramIndex++; }
+  if (data.name !== undefined) { fields.push(`name = $${paramIndex}`); params.push(data.name); paramIndex++; }
+  if (data.type !== undefined) { fields.push(`type = $${paramIndex}`); params.push(data.type); paramIndex++; }
+  if (data.classe !== undefined) { fields.push(`classe = $${paramIndex}`); params.push(data.classe); paramIndex++; }
+  if (data.coordX !== undefined) { fields.push(`"coordX" = $${paramIndex}`); params.push(data.coordX); paramIndex++; }
+  if (data.coordY !== undefined) { fields.push(`"coordY" = $${paramIndex}`); params.push(data.coordY); paramIndex++; }
+  if (data.progressiva !== undefined) { fields.push(`progressiva = $${paramIndex}`); params.push(data.progressiva); paramIndex++; }
+  if (data.deflexao !== undefined) { fields.push(`deflexao = $${paramIndex}`); params.push(data.deflexao); paramIndex++; }
+  if (data.alturaUtil !== undefined) { fields.push(`"alturaUtil" = $${paramIndex}`); params.push(data.alturaUtil); paramIndex++; }
+  if (data.vanFrente !== undefined) { fields.push(`"vanFrente" = $${paramIndex}`); params.push(data.vanFrente); paramIndex++; }
+  if (data.cotaCentro !== undefined) { fields.push(`"cotaCentro" = $${paramIndex}`); params.push(data.cotaCentro); paramIndex++; }
+  if (data.lt !== undefined) { fields.push(`lt = $${paramIndex}`); params.push(data.lt); paramIndex++; }
+  if (data.voltage !== undefined) { fields.push(`voltage = $${paramIndex}`); params.push(data.voltage); paramIndex++; }
+  if (data.cadeiaCondutor !== undefined) { fields.push(`"cadeiaCondutor" = $${paramIndex}`); params.push(data.cadeiaCondutor); paramIndex++; }
+  if (data.qtdCadeias !== undefined) { fields.push(`"qtdCadeias" = $${paramIndex}`); params.push(data.qtdCadeias); paramIndex++; }
+  if (data.cadeiaParaRaios !== undefined) { fields.push(`"cadeiaParaRaios" = $${paramIndex}`); params.push(data.cadeiaParaRaios); paramIndex++; }
+  if (data.qtdCadeiasPR !== undefined) { fields.push(`"qtdCadeiasPR" = $${paramIndex}`); params.push(data.qtdCadeiasPR); paramIndex++; }
+  if (data.estruturaCritica !== undefined) { fields.push(`"estruturaCritica" = $${paramIndex}`); params.push(data.estruturaCritica ? 1 : 0); paramIndex++; }
+  if (data.status !== undefined) { fields.push(`status = $${paramIndex}`); params.push(data.status); paramIndex++; }
   if (data.observation !== undefined) { fields.push(`observation = $${paramIndex}`); params.push(data.observation); paramIndex++; }
-  if (data.classe) { fields.push(`classe = $${paramIndex}`); params.push(data.classe); paramIndex++; }
   
   if (fields.length === 0) return await getStructureById(id);
   

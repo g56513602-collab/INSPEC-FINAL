@@ -117,8 +117,14 @@ router.get('/:inspectionId', async (req, res) => {
     if (!inspection) {
       return res.status(404).json({ error: 'Inspeção não encontrada' });
     }
-    
-    res.json(inspection.photos || []);
+
+    const photos = await queries.getPhotosByInspectionId(req.params.inspectionId);
+    res.json(
+      photos.map((photo) => ({
+        ...photo,
+        url: photo.path,
+      }))
+    );
   } catch (error) {
     console.error('❌ Erro ao buscar fotos:', error.message);
     res.status(500).json({ error: error.message });
