@@ -90,6 +90,18 @@ class SyncManager {
       syncInProgress: this.syncInProgress,
     };
   }
+
+  // Verifica conexão com o backend sob demanda
+  async checkConnection(): Promise<boolean> {
+    try {
+      const available = await api.syncAPI.checkConnection();
+      this.backendAvailable = available;
+      return available;
+    } catch (error) {
+      this.backendAvailable = false;
+      return false;
+    }
+  }
 }
 
 // Instância global
