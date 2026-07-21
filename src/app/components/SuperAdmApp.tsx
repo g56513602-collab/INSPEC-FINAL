@@ -156,6 +156,7 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
   const [logsNextReset, setLogsNextReset] = useState<Date | null>(null);
   const [logSearch, setLogSearch] = useState('');
   const [logLevelFilter, setLogLevelFilter] = useState<'all' | 'info' | 'warning' | 'error' | 'success'>('all');
+  const [initializing, setInitializing] = useState(true);
 
   async function refresh() {
     if (backendConnected) {
@@ -219,23 +220,41 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
   }
 
   useEffect(() => {
-    refresh().catch((error) => console.error(error));
-  }, []);
+    let unsub: (() => void) | null = null;
+    const init = async () => {
+      try {
+        const available = await backendStore.syncManager.checkConnection();
+        setBackendConnected(available);
+        // Sempre carregar dados — se backend disponível, irá carregar remoto,
+        // caso contrário, a função refresh carrega os dados locais.
+        await refresh();
 
-  useEffect(() => {
-    backendStore.syncManager.onSync(() => {
-      refresh().catch((error) => console.error(error));
-      setBackendConnected(true);
-    });
-    backendStore.syncManager.checkConnection().then((available) => {
-      setBackendConnected(available);
-      if (available) refresh().catch((error) => console.error(error));
-    });
+        // Registrar listener para sincronizações futuras
+        unsub = backendStore.syncManager.onSync(() => {
+          refresh().catch((error) => console.error(error));
+          setBackendConnected(true);
+        });
+      } catch (error) {
+        console.error('Erro na inicialização de dados:', error);
+        await refresh();
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    init();
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  }
+
+  if (initializing) {
+    return <div style={{ padding: 16 }}>Carregando dados...</div>;
   }
 
   async function handleCleanData() {
