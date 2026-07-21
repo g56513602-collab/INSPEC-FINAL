@@ -1,0 +1,201 @@
+╔════════════════════════════════════════════════════════════════╗
+║         🧹 LIMPEZA DE DADOS SIMULADOS - GUIA VISUAL             ║
+║                  INSPEC360 v2.2 - Junho 2026                    ║
+╚════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────┐
+│ ⚠️  AVISO IMPORTANTE                                             │
+├─────────────────────────────────────────────────────────────────┤
+│ • Esta operação é IRREVERSÍVEL                                  │
+│ • Todos os dados simulados serão PERMANENTEMENTE deletados       │
+│ • Apenas 3 usuários de teste serão mantidos                     │
+│ • FAÇA BACKUP ANTES DE EXECUTAR!                               │
+└─────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+
+📋 O QUE SERÁ DELETADO
+
+┌─ Dados de Inspeção ─────────────────────────────────────────────┐
+│ ❌ Pauses              (pausas durante inspeção)                 │
+│ ❌ Photos              (fotos capturadas)                        │
+│ ❌ Anomalies           (problemas encontrados)                   │
+│ ❌ ComponentInspections (componentes inspecionados)              │
+│ ❌ InspectionRecords   (registros de inspeção)                   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ Dados Operacionais ────────────────────────────────────────────┐
+│ ❌ ServiceOrders       (ordens de serviço)                       │
+│ ❌ Executions          (execuções de trabalho)                   │
+│ ❌ Structures          (estruturas a inspecionar)                │
+│ ❌ ComponentRules      (componentes padronizados)                │
+│ ❌ State               (estado da aplicação)                     │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ Usuários ──────────────────────────────────────────────────────┐
+│ ❌ Usuários Simulados  (todos deletados)                         │
+│ ✅ Usuários de Teste   (3 mantidos)                              │
+└─────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+
+✅ O QUE SERÁ MANTIDO
+
+┌─ Estrutura do Banco ────────────────────────────────────────────┐
+│ ✅ Tabelas              (estrutura intacta)                      │
+│ ✅ Campos               (sem alteração)                          │
+│ ✅ Constraints          (FK, PK, etc)                            │
+│ ✅ Índices              (todos mantidos)                         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ Usuários de Teste ─────────────────────────────────────────────┐
+│ 👷 Técnico:      ismar.santos@vale-verde.com        (role: tecnico)  │
+│ 👨‍💼 Supervisor: jonson.santos@vale-verde.com     (role: supervisor) │
+│ 👨‍💼 Admin:      gustavo.santos@vale-verde.com     (role: admin)      │
+└─────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+
+🚀 COMO EXECUTAR
+
+┌─ OPÇÃO 1: Script Node.js (Automático) ──────────────────────────┐
+│                                                                  │
+│ $ cd backend                                                     │
+│ $ npm run clean-data                                             │
+│                                                                  │
+│ ✅ Vantagens:                                                    │
+│    • Automático e seguro                                        │
+│    • Mostra feedback detalhado                                  │
+│    • Valida antes de deletar                                    │
+│                                                                  │
+│ ❌ Requer: Node.js v20+                                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ OPÇÃO 2: SQL Direto (Manual) ──────────────────────────────────┐
+│                                                                  │
+│ Via DBeaver / pgAdmin / psql:                                    │
+│                                                                  │
+│ 1. Abra: backend/src/database/CLEAN_DATA.sql                    │
+│ 2. Execute todo o script SQL                                    │
+│ 3. Verifique resultados                                         │
+│                                                                  │
+│ ✅ Vantagens:                                                    │
+│    • Funciona em qualquer ambiente                              │
+│    • Pode executar parcialmente                                 │
+│    • Pronto para copiar/colar                                   │
+│                                                                  │
+│ ❌ Requer: PostgreSQL client ou GUI de banco                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+
+⚡ PASSOS PRÉ-EXECUÇÃO
+
+ 1. ☐ Faça BACKUP do banco:
+      $ pg_dump -U postgres inspec360 > backup_YYYYMMDD.sql
+      
+ 2. ☐ Verifique DATABASE_URL:
+      Deve apontar para desenvolvimento, NÃO produção
+      
+ 3. ☐ Feche conexões ativas:
+      Nenhum outro processo usando o banco
+      
+ 4. ☐ Releia este guia e tenha certeza
+      
+ 5. ☐ Execute o comando de limpeza
+
+═══════════════════════════════════════════════════════════════════
+
+📊 VERIFICAÇÃO PÓS-EXECUÇÃO
+
+Após executar, você deve ver:
+
+┌─────────────────────────────────────────────────────────────────┐
+│ Tabela              │ Registros Esperados                        │
+├─────────────────────┼────────────────────────────────────────────┤
+│ users               │ 3  ✅ (Ismar, Jonson, Gustavo)             │
+│ structures          │ 0  ✅                                      │
+│ componentRules      │ 0  ✅                                      │
+│ serviceOrders       │ 0  ✅                                      │
+│ inspectionRecords   │ 0  ✅                                      │
+│ componentInspections│ 0  ✅                                      │
+│ anomalies           │ 0  ✅                                      │
+│ photos              │ 0  ✅                                      │
+│ executions          │ 0  ✅                                      │
+│ pauses              │ 0  ✅                                      │
+│ state               │ 0  ✅                                      │
+└─────────────────────┴────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+
+🔄 SE ALGO DER ERRADO
+
+┌─ Erro: "Permission denied" ─────────────────────────────────────┐
+│ Solução: Usuário sem permissão                                  │
+│ → Use superuser: psql -U postgres                               │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ Erro: "Database is in use" ────────────────────────────────────┐
+│ Solução: Outro processo usa o banco                             │
+│ → Feche outras conexões                                         │
+│ → Reinicie servidor PostgreSQL                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ Erro: "Table not found" ───────────────────────────────────────┐
+│ Solução: Estrutura do banco diferente                           │
+│ → Execute: npm run init-db                                      │
+│ → Depois: npm run clean-data                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─ Preciso restaurar dados ───────────────────────────────────────┐
+│ Comando:                                                         │
+│ $ psql -U postgres inspec360 < backup_YYYYMMDD.sql              │
+└─────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+
+📚 ARQUIVOS RELACIONADOS
+
+ • clean-simulated-data.js  → Script Node.js (automático)
+ • CLEAN_DATA.sql           → Script SQL (manual)
+ • COMO_LIMPAR_DADOS.md     → Guia detalhado
+ • Este arquivo              → Referência visual
+
+═══════════════════════════════════════════════════════════════════
+
+✅ PRÓXIMOS PASSOS
+
+Após limpeza bem-sucedida:
+
+ 1. ✅ Iniciar servidor: npm run dev
+ 2. ✅ Testar login com os 3 usuários
+ 3. ✅ Criar primeiras estruturas reais
+ 4. ✅ Iniciar ciclo de produção
+
+═══════════════════════════════════════════════════════════════════
+
+🎯 RESUMO
+
+ ✅ Todos dados simulados serão deletados
+ ✅ 3 usuários de teste permanecerão
+ ✅ Estrutura de banco permanece intacta
+ ✅ Sistema fica pronto para dados reais
+ ✅ Operação é REVERSÍVEL com backup
+
+═══════════════════════════════════════════════════════════════════
+
+📞 DÚVIDAS?
+
+ • Consulte: COMO_LIMPAR_DADOS.md (guia detalhado)
+ • Verifique: backend/src/database/CLEAN_DATA.sql (script SQL)
+ • Execute: npm run clean-data (automático)
+
+═══════════════════════════════════════════════════════════════════
+
+Criado: Junho 2026
+Versão: 2.2.0
+Status: ✅ Pronto para Usar
+
+╚════════════════════════════════════════════════════════════════════╝

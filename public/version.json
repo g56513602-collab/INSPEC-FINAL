@@ -1,0 +1,6 @@
+{
+  "version": "2.1.20260602002",
+  "buildDate": "2026-06-02T16:15:00Z",
+  "features": ["camera-fix", "gallery-fallback", "period-sync", "multi-device-sync", "multi-structure-orders"],
+  "lastUpdate": "Feat: Seleção múltipla de estruturas e correção de sincronização"
+}
