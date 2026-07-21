@@ -15,6 +15,7 @@ import type {
   InspectionPhoto,
 } from './types';
 import { INITIAL_INSPECTION_COMPONENTS, INITIAL_SEVERITY_OPTIONS } from './checklistRules';
+import { isUtmCoord, utmToLatLng } from '@/utils/coordinateUtils';
 
 const STORAGE_KEY = 'inspec360_v22_data';
 const LOG_RESET_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
@@ -688,26 +689,37 @@ export function addPhoto(orderId: string, photoBase64: string, componentId?: str
 
 // ─── Supervisor helpers ──────────────────────────────────────────────────────
 
+function fillStructureCoordinates(structure: Structure): Structure {
+  if (structure.coordX != null && structure.coordY != null && isUtmCoord(structure.coordX, structure.coordY)) {
+    const geo = utmToLatLng(structure.coordX, structure.coordY);
+    structure.lat = geo.lat;
+    structure.lng = geo.lng;
+  } else if (structure.lng != null || structure.lat != null) {
+    structure.coordX = structure.coordX ?? structure.lng ?? 0;
+    structure.coordY = structure.coordY ?? structure.lat ?? 0;
+    structure.lat = structure.lat ?? structure.coordY;
+    structure.lng = structure.lng ?? structure.coordX;
+  } else {
+    structure.coordX = structure.coordX ?? structure.lng ?? 0;
+    structure.coordY = structure.coordY ?? structure.lat ?? 0;
+    structure.lat = structure.coordY;
+    structure.lng = structure.coordX;
+  }
+  return structure;
+}
+
 export function addStructure(structure: Structure): void {
   const store = getStore();
-  // Garantir coordX/coordY sincronizados com lat/lng
-  structure.coordX = structure.coordX ?? structure.lng ?? 0;
-  structure.coordY = structure.coordY ?? structure.lat ?? 0;
-  structure.lat = structure.coordY;
-  structure.lng = structure.coordX;
-  store.structures.push(structure);
+  store.structures.push(fillStructureCoordinates(structure));
   addSystemLog({ level: 'info', module: 'Estruturas', message: `Nova estrutura criada: ${structure.name}` });
   saveStore(store);
 }
 
 export function updateStructure(updated: Structure): void {
   const store = getStore();
-  updated.coordX = updated.coordX ?? updated.lng ?? 0;
-  updated.coordY = updated.coordY ?? updated.lat ?? 0;
-  updated.lat = updated.coordY;
-  updated.lng = updated.coordX;
+  const filled = fillStructureCoordinates(updated);
   const idx = store.structures.findIndex((s) => s.id === updated.id);
-  if (idx >= 0) store.structures[idx] = updated;
+  if (idx >= 0) store.structures[idx] = filled;
   saveStore(store);
 }
 

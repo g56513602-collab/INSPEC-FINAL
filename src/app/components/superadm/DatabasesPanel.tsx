@@ -412,8 +412,8 @@ function StructuresTable({ structures, users, expandedRow, onExpand }: {
                           <FieldBadge label="name" value={s.name} />
                           <FieldBadge label="type" value={s.type} />
                           <FieldBadge label="classe" value={s.classe || '—'} />
-                          <FieldBadge label="coordX (longitude)" value={s.coordX} />
-                          <FieldBadge label="coordY (latitude)" value={s.coordY} />
+                          <FieldBadge label="coordX (UTM Easting)" value={s.coordX} />
+                          <FieldBadge label="coordY (UTM Northing)" value={s.coordY} />
                           <FieldBadge label="progressiva (m)" value={s.progressiva} />
                           <FieldBadge label="deflexao (°)" value={s.deflexao ?? '—'} />
                           <FieldBadge label="alturaUtil (m)" value={s.alturaUtil ?? '—'} />

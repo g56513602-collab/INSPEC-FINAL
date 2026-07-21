@@ -24,6 +24,7 @@ import {
   Cpu,
   HardDrive,
 } from 'lucide-react';
+import { isUtmCoord, utmToLatLng } from '@/utils/coordinateUtils';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -349,10 +350,15 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
       showToast('Preencha nome e linha de transmissão.');
       return;
     }
+    const geo = isUtmCoord(structureForm.coordX, structureForm.coordY)
+      ? utmToLatLng(structureForm.coordX, structureForm.coordY)
+      : { lat: structureForm.coordY, lng: structureForm.coordX };
     const structureData = {
       ...structureForm,
-      lat: structureForm.coordY,
-      lng: structureForm.coordX,
+      coordX: structureForm.coordX,
+      coordY: structureForm.coordY,
+      lat: geo.lat,
+      lng: geo.lng,
     };
     try {
       if (editingStructure) {
@@ -1166,11 +1172,11 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
             {/* Coordenadas */}
             <div className="mb-4">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> Coordenadas Geográficas
+                <MapPin className="w-3.5 h-3.5" /> Coordenadas UTM (Zona 25S, WGS84)
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Coord. X (Longitude)</label>
+                  <label className="text-xs text-gray-600 mb-1 block">Coord. X (Easting)</label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -1188,11 +1194,11 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
                         }
                       }
                     }}
-                    placeholder="-36.71800"
+                    placeholder="748000"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Coord. Y (Latitude)</label>
+                  <label className="text-xs text-gray-600 mb-1 block">Coord. Y (Northing)</label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -1210,7 +1216,7 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
                         }
                       }
                     }}
-                    placeholder="-9.40000"
+                    placeholder="-9580000"
                   />
                 </div>
               </div>

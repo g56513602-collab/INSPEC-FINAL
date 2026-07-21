@@ -17,6 +17,7 @@ import {
   FileText,
   Filter,
 } from 'lucide-react';
+import { latLngToUtm } from '@/utils/coordinateUtils';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -178,13 +179,14 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
 
   function handleAddStructureSubmit() {
     if (!pendingPin || !structureForm.name) return;
+    const utm = latLngToUtm(pendingPin.lat, pendingPin.lng);
     const newStructure: Structure = {
       id: generateId(),
       name: structureForm.name,
       type: structureForm.type,
       progressiva: parseFloat(structureForm.progressiva) || 0,
-      coordX: pendingPin.lng,
-      coordY: pendingPin.lat,
+      coordX: utm.x,
+      coordY: utm.y,
       lat: pendingPin.lat,
       lng: pendingPin.lng,
       lt: structureForm.lt,
@@ -761,7 +763,10 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                   </div>
 
                   <div className="p-2 bg-green-50 rounded-lg text-xs text-green-700">
-                    📍 Posição: {pendingPin.lat.toFixed(5)}°, {pendingPin.lng.toFixed(5)}°
+                    📍 Posição geográfica: {pendingPin.lat.toFixed(5)}°, {pendingPin.lng.toFixed(5)}°
+                  </div>
+                  <div className="p-2 bg-gray-50 rounded-lg text-xs text-gray-700">
+                    📏 UTM 25S: X {latLngToUtm(pendingPin.lat, pendingPin.lng).x.toFixed(2)}, Y {latLngToUtm(pendingPin.lat, pendingPin.lng).y.toFixed(2)}
                   </div>
 
                   <div className="space-y-3">

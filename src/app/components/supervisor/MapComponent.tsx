@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type { Structure } from '../../data/types';
+import { isUtmCoord, utmToLatLng } from '../../../utils/coordinateUtils';
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -102,15 +103,17 @@ export function MapComponent({
     const validPoints: L.LatLngTuple[] = [];
 
     structs.forEach((s) => {
-      const lat = s.coordY ?? s.lat;
-      const lng = s.coordX ?? s.lng;
+      const hasUtm = s.coordX != null && s.coordY != null && isUtmCoord(s.coordX, s.coordY);
+      const geo = hasUtm
+        ? utmToLatLng(s.coordX, s.coordY)
+        : { lat: s.coordY ?? s.lat ?? 0, lng: s.coordX ?? s.lng ?? 0 };
 
-      if (lat == null || lng == null || (lat === 0 && lng === 0)) return;
+      if (geo.lat == null || geo.lng == null || (geo.lat === 0 && geo.lng === 0)) return;
 
-      validPoints.push([lat, lng]);
+      validPoints.push([geo.lat, geo.lng]);
 
       const color = STATUS_COLORS[s.status] || '#6b7280';
-      const marker = L.marker([lat, lng], { icon: makeIcon(color) });
+      const marker = L.marker([geo.lat, geo.lng], { icon: makeIcon(color) });
 
       const popupContent = `
         <div style="font-family:sans-serif;min-width:160px;">
