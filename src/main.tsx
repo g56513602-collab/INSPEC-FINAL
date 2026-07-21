@@ -3,8 +3,10 @@
   import App from "./app/App.tsx";
   import "./styles/index.css";
   import "./styles/pwa.css";
-import { OfflineProvider } from "./context/OfflineContext.tsx";
-import { OfflineIndicator } from "./components/OfflineIndicator.tsx";
+  import { OfflineProvider } from "./context/OfflineContext.tsx";
+  import { OfflineIndicator } from "./components/OfflineIndicator.tsx";
+  import backendStore from './app/data/backendStore';
+  import { applyBackendState } from './app/data/store';
 
 // Register Service Worker for offline support
 if ("serviceWorker" in navigator) {
@@ -45,10 +47,43 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(
-  <OfflineProvider>
-    <App />
-    <OfflineIndicator />
-  </OfflineProvider>
-);
+async function initAndRender() {
+  const rootEl = document.getElementById('root');
+  if (!rootEl) throw new Error('Root element not found');
+
+  try {
+    const connected = await backendStore.syncManager.checkConnection();
+    if (connected) {
+      console.log('[Init] Backend disponível — sincronizando estado inicial');
+      try {
+        const data = await backendStore.syncAllData();
+        if (data) applyBackendState(data);
+      } catch (err) {
+        console.warn('[Init] Falha ao obter estado inicial do backend:', err);
+      }
+    } else {
+      console.warn('[Init] Backend indisponível — iniciando com estado local');
+    }
+  } catch (err) {
+    console.error('[Init] Erro checando backend:', err);
+  }
+
+  createRoot(rootEl).render(
+    <OfflineProvider>
+      <App />
+      <OfflineIndicator />
+    </OfflineProvider>
+  );
+}
+
+initAndRender().catch(err => {
+  console.error('Erro ao inicializar a aplicação:', err);
+  // fallback: render anyway to allow troubleshooting
+  createRoot(document.getElementById('root')!).render(
+    <OfflineProvider>
+      <App />
+      <OfflineIndicator />
+    </OfflineProvider>
+  );
+});
   

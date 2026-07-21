@@ -32,6 +32,17 @@ function dispatchBackendSuccess(context: string) {
 const STORAGE_KEY = 'inspec360_v22_data';
 const LOG_RESET_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
+// Aplicar estado vindo do backend no localStorage e notificar a aplicação
+export function applyBackendState(state: AppData): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.dispatchEvent(new CustomEvent('dataRefresh', { detail: { timestamp: Date.now(), source: 'backend' } }));
+    console.log('[Store] Estado do backend aplicado ao armazenamento local');
+  } catch (err) {
+    console.error('[Store] Falha ao aplicar estado do backend:', err);
+  }
+}
+
 // ─── Dados iniciais ──────────────────────────────────────────────────────────
 
 const INITIAL_USERS: SystemUser[] = [
