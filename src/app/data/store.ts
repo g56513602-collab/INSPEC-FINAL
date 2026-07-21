@@ -317,13 +317,57 @@ export function getStore(): AppData {
 }
 
 export function saveStore(data: AppData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  // Fire-and-forget sync to backend for multi-user persistence
+  const REQUIRE_BACKEND = (import.meta.env.VITE_REQUIRE_BACKEND === 'true');
+
+  // Persist locally first (so UI remains responsive)
+  const previous = localStorage.getItem(STORAGE_KEY);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error('[Storage] Falha ao gravar localmente:', err);
+    window.dispatchEvent(new CustomEvent('backend-sync-failed', { detail: { error: 'failed_local_write' } }));
+    return;
+  }
+
+  // Try to persist to backend. If REQUIRE_BACKEND is set, revert and notify on failure.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   fetch('/api/state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ state: data }),
-  }).catch(() => { /* backend unavailable — localStorage is the fallback */ });
+    signal: controller.signal,
+  })
+    .then((res) => {
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Success — nothing else to do
+      window.dispatchEvent(new CustomEvent('backend-sync-success', { detail: { timestamp: Date.now() } }));
+    })
+    .catch((err) => {
+      clearTimeout(timeout);
+      console.error('[Backend Sync] Falha ao sincronizar com backend:', err);
+      // Log error to system logs (best-effort)
+      try {
+        const store = getStore();
+        if (!store.systemLogs) store.systemLogs = [];
+        store.systemLogs.push({ id: generateId(), timestamp: new Date().toISOString(), level: 'error', module: 'Storage', message: `Falha ao salvar no backend: ${err.message || err}` });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      } catch {}
+
+      // Notify app about the failure
+      window.dispatchEvent(new CustomEvent('backend-sync-failed', { detail: { error: err } }));
+
+      if (REQUIRE_BACKEND) {
+        // revert local write
+        try {
+          if (previous === null) localStorage.removeItem(STORAGE_KEY);
+          else localStorage.setItem(STORAGE_KEY, previous);
+        } catch {}
+        // In strict mode, surface the error so callers can react (we can't throw here because callers expect void)
+        console.error('[Storage] REQUIRE_BACKEND enabled — local change reverted due to backend failure');
+      }
+    });
 }
 
 /**

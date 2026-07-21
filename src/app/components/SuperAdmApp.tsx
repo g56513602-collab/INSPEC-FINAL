@@ -243,8 +243,20 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     };
 
     init();
+    const onFail = (e: any) => {
+      console.error('Evento de falha de sincronização:', e.detail);
+      showToast('Falha ao salvar no backend. Verifique a conexão.');
+    };
+    const onSuccess = (e: any) => {
+      showToast('Sincronização com backend concluída.');
+    };
+    window.addEventListener('backend-sync-failed', onFail as EventListener);
+    window.addEventListener('backend-sync-success', onSuccess as EventListener);
+
     return () => {
       if (unsub) unsub();
+      window.removeEventListener('backend-sync-failed', onFail as EventListener);
+      window.removeEventListener('backend-sync-success', onSuccess as EventListener);
     };
   }, []);
 
