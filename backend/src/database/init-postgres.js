@@ -216,13 +216,13 @@ export async function initializeDatabase() {
   await runSQL(`
     CREATE TABLE IF NOT EXISTS "pauseHistory" (
       id TEXT PRIMARY KEY,
-      "orderId" TEXT NOT NULL,
-      "userId" TEXT NOT NULL,
-      "userName" TEXT NOT NULL,
+      "inspectionId" TEXT NOT NULL,
+      "userId" TEXT,
+      "userName" TEXT,
       "pausedAt" TEXT NOT NULL,
       "resumedAt" TEXT,
       reason TEXT,
-      FOREIGN KEY("orderId") REFERENCES "serviceOrders"(id),
+      FOREIGN KEY("inspectionId") REFERENCES "inspectionRecords"(id),
       FOREIGN KEY("userId") REFERENCES users(id)
     )
   `);

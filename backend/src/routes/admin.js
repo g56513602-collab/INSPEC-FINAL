@@ -39,7 +39,7 @@ router.post('/clean-data', async (req, res) => {
 
     // Limpar dados (ordem importa por FK)
     const deletionOrder = [
-      'pauses',
+      '"pauseHistory"',
       'photos',
       'anomalies',
       '"componentInspections"',
@@ -92,7 +92,7 @@ router.post('/clean-data', async (req, res) => {
     const allTables = [
       'users', 'structures', 'componentRules', 'serviceOrders',
       'inspectionRecords', 'componentInspections', 'anomalies',
-      'photos', 'executions', 'pauses', 'state'
+      'photos', 'executions', 'pauseHistory', 'state'
     ];
 
     const stats = {};

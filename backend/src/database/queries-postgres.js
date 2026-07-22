@@ -513,21 +513,21 @@ export async function createPause(data) {
   const now = new Date().toISOString();
   
   await runSQL(
-    `INSERT INTO pauses (id, "inspectionId", "startTime", reason, "createdAt")
-     VALUES ($1, $2, $3, $4, $5)`,
-    [id, data.inspectionId, now, data.reason || '', now]
+    `INSERT INTO "pauseHistory" (id, "inspectionId", "userId", "userName", "pausedAt", reason)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, data.inspectionId, data.userId || null, data.userName || null, now, data.reason || '']
   );
   
-  return await getQueryOne('SELECT * FROM pauses WHERE id = $1', [id]);
+  return await getQueryOne('SELECT * FROM "pauseHistory" WHERE id = $1', [id]);
 }
 
 export async function resumePause(pauseId) {
   const now = new Date().toISOString();
   
   await runSQL(
-    'UPDATE pauses SET "endTime" = $1 WHERE id = $2',
+    'UPDATE "pauseHistory" SET "resumedAt" = $1 WHERE id = $2',
     [now, pauseId]
   );
   
-  return await getQueryOne('SELECT * FROM pauses WHERE id = $1', [pauseId]);
+  return await getQueryOne('SELECT * FROM "pauseHistory" WHERE id = $1', [pauseId]);
 }

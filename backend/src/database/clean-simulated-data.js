@@ -25,9 +25,9 @@ async function cleanDatabase() {
     // 1. Limpar dados relacionados a inspeções
     console.log('🗑️  Limpando dados de inspeções...');
     
-    // Pauses
-    await client.query('DELETE FROM pauses;');
-    console.log('  ✓ Pauses deletadas');
+    // Pause history
+    await client.query('DELETE FROM "pauseHistory";');
+    console.log('  ✓ Histórico de pausas deletado');
 
     // Photos
     await client.query('DELETE FROM photos;');
@@ -86,9 +86,11 @@ async function cleanDatabase() {
     console.log(`  ✓ Usuários encontrados para manter: ${usersToKeep.rows.length}`);
 
     // Deletar outros usuários
+    const userEmails = USERS_TO_KEEP.map(u => u.email);
+    const placeholders = userEmails.map((_, index) => `$${index + 1}`).join(', ');
     const deleteResult = await client.query(
-      'DELETE FROM users WHERE email NOT IN ($1)',
-      [USERS_TO_KEEP.map(u => u.email)]
+      `DELETE FROM users WHERE email NOT IN (${placeholders})`,
+      userEmails
     );
 
     console.log(`  ✓ Usuários simulados deletados: ${deleteResult.rowCount}`);
