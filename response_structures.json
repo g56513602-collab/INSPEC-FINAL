@@ -1,0 +1,10 @@
+﻿Invoke-RestMethod : O servidor remoto retornou um erro: (500) Erro Interno do 
+Servidor.
+No C:\Inpesc360-atualizado\tmp\import_structs.ps1:21 caractere:10
++   $res = Invoke-RestMethod -Uri 'https://inspec-final.onrender.com/ap ...
++          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:Htt 
+   pWebRequest) [Invoke-RestMethod], WebException
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShe 
+   ll.Commands.InvokeRestMethodCommand
+ 

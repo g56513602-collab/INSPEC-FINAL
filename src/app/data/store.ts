@@ -346,6 +346,9 @@ export function saveStore(data: AppData): void {
   const previous = localStorage.getItem(STORAGE_KEY);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    window.dispatchEvent(new CustomEvent('dataRefresh', {
+      detail: { timestamp: Date.now(), source: 'local-write' },
+    }));
   } catch (err) {
     console.error('[Storage] Falha ao gravar localmente:', err);
     window.dispatchEvent(new CustomEvent('backend-sync-failed', { detail: { error: 'failed_local_write' } }));
@@ -1150,6 +1153,7 @@ export function addSystemLog(entry: Omit<SystemLog, 'id' | 'timestamp'>): void {
     store.systemLogs.push({ id: generateId(), timestamp: new Date().toISOString(), ...entry });
     if (store.systemLogs.length > 500) store.systemLogs = store.systemLogs.slice(-500);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    window.dispatchEvent(new CustomEvent('dataRefresh', { detail: { timestamp: Date.now(), source: 'system-log' } }));
   } catch {
     // silent fail
   }

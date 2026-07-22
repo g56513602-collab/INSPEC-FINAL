@@ -134,20 +134,25 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
 
   function refresh() {
     const store = getStore();
+    const nextTechnicians = store.users
+      .filter((u) => u.role === 'tecnico' && u.status === 'active')
+      .map((u) => ({ id: u.id, name: u.name }));
+
     setStructures(store.structures);
     setOrders(store.serviceOrders);
-    setTechnicians(
-      store.users
-        .filter((u) => u.role === 'tecnico' && u.status === 'active')
-        .map((u) => ({ id: u.id, name: u.name }))
-    );
+    setTechnicians(nextTechnicians);
   }
 
   useEffect(() => {
     refresh();
     const handleStorage = () => refresh();
+    const handleDataRefresh = () => refresh();
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('dataRefresh', handleDataRefresh as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('dataRefresh', handleDataRefresh as EventListener);
+    };
   }, []);
 
   useEffect(() => {

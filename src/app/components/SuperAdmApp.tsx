@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   LogOut,
   Users,
@@ -42,6 +42,15 @@ import {
   getSystemLogs,
   resetSystemLogs,
   getLogsNextReset,
+  addUser,
+  updateUser,
+  deleteUser,
+  addStructure,
+  updateStructure,
+  deleteStructure,
+  addChecklistComponent,
+  updateChecklistComponent,
+  deleteChecklistComponent,
 } from '../data/store';
 import { backendStore } from '../data/backendStore';
 import type { SystemUser, Structure, StructureType, StructureStatus, SeverityOption, SystemLog, ServiceOrder } from '../data/types';
@@ -155,48 +164,15 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
   const [logsNextReset, setLogsNextReset] = useState<Date | null>(null);
   const [logSearch, setLogSearch] = useState('');
+  const backendConnectedRef = useRef(backendConnected);
   const [logLevelFilter, setLogLevelFilter] = useState<'all' | 'info' | 'warning' | 'error' | 'success'>('all');
   const [initializing, setInitializing] = useState(true);
 
+  useEffect(() => {
+    backendConnectedRef.current = backendConnected;
+  }, [backendConnected]);
+
   async function refresh() {
-    if (backendConnected) {
-      try {
-        const [users, structures, components, orders] = await Promise.all([
-          backendStore.userStore.getAll(),
-          backendStore.structureStore.getAll(),
-          backendStore.componentStore.getAll(),
-          backendStore.serviceOrderStore.getAll(),
-        ]);
-
-        setUsers(users);
-        setStructures(structures);
-        setChecklistComponents(components);
-        setServiceOrders(orders);
-        setOrderCount(orders.length);
-        setSeverities(getSeverities());
-        setSystemLogs(getSystemLogs());
-        setLogsNextReset(getLogsNextReset());
-
-        const activities = orders
-          .filter((o) => o.activityLog && o.activityLog.length > 0)
-          .flatMap((o) =>
-            (o.activityLog || []).map((log) => ({
-              text: `${log.userName}: ${log.action} – ${structures.find((s) => s.id === o.structureId)?.name || o.id}`,
-              time: new Date(log.timestamp).toLocaleString('pt-BR'),
-            }))
-          )
-          .sort((a, b) => b.time.localeCompare(a.time))
-          .slice(0, 20);
-
-        setActivityItems(activities);
-        return;
-      } catch (error) {
-        console.error('Falha ao carregar dados do backend:', error);
-        setBackendConnected(false);
-        showToast('Falha ao conectar com backend. Exibindo dados locais.');
-      }
-    }
-
     const store = getStore();
     setUsers(store.users);
     setStructures(store.structures);
@@ -217,6 +193,21 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
       .sort((a, b) => b.time.localeCompare(a.time))
       .slice(0, 20);
     setActivityItems(activities);
+
+    if (!backendConnectedRef.current) return;
+
+    try {
+      await Promise.all([
+        backendStore.userStore.getAll(),
+        backendStore.structureStore.getAll(),
+        backendStore.componentStore.getAll(),
+        backendStore.serviceOrderStore.getAll(),
+      ]);
+    } catch (error) {
+      console.error('Falha ao carregar dados do backend:', error);
+      setBackendConnected(false);
+      showToast('Falha ao conectar com backend. Exibindo dados locais.');
+    }
   }
 
   useEffect(() => {
@@ -250,13 +241,18 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     const onSuccess = (e: any) => {
       showToast('Sincronização com backend concluída.');
     };
+    const onDataRefresh = () => {
+      refresh().catch((error) => console.error(error));
+    };
     window.addEventListener('backend-sync-failed', onFail as EventListener);
     window.addEventListener('backend-sync-success', onSuccess as EventListener);
+    window.addEventListener('dataRefresh', onDataRefresh as EventListener);
 
     return () => {
       if (unsub) unsub();
       window.removeEventListener('backend-sync-failed', onFail as EventListener);
       window.removeEventListener('backend-sync-success', onSuccess as EventListener);
+      window.removeEventListener('dataRefresh', onDataRefresh as EventListener);
     };
   }, []);
 
@@ -309,41 +305,31 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
       showToast('Preencha todos os campos obrigatórios.');
       return;
     }
-    try {
-      if (editingUser) {
-        await backendStore.userStore.update(editingUser.id, { ...editingUser, ...userForm });
-        showToast('Usuário atualizado com sucesso!');
-      } else {
-        await backendStore.userStore.create({ id: generateId(), ...userForm, lastLogin: '—' });
-        showToast('Usuário criado com sucesso!');
-      }
-      await refresh();
-      setShowUserForm(false);
-    } catch (error) {
-      showToast('Erro ao salvar usuário. Verifique a conexão com o backend.');
+
+    if (editingUser) {
+      updateUser({ ...editingUser, ...userForm });
+      showToast('Usuário atualizado com sucesso!');
+    } else {
+      addUser({ id: generateId(), ...userForm, lastLogin: '—' });
+      showToast('Usuário criado com sucesso!');
     }
+
+    refresh();
+    setShowUserForm(false);
   }
 
   async function handleDeleteUser(u: SystemUser) {
-    try {
-      await backendStore.userStore.delete(u.id);
-      await refresh();
-      setConfirmDeleteUser(null);
-      showToast('Usuário excluído.');
-    } catch (error) {
-      showToast('Erro ao excluir usuário.');
-    }
+    deleteUser(u.id);
+    refresh();
+    setConfirmDeleteUser(null);
+    showToast('Usuário excluído.');
   }
 
   async function handleToggleUserStatus(u: SystemUser) {
-    try {
-      const nextStatus = u.status === 'active' ? 'inactive' : 'active';
-      await backendStore.userStore.update(u.id, { ...u, status: nextStatus });
-      await refresh();
-      showToast(`Usuário ${nextStatus === 'active' ? 'ativado' : 'desativado'}.`);
-    } catch (error) {
-      showToast('Erro ao atualizar status do usuário.');
-    }
+    const nextStatus = u.status === 'active' ? 'inactive' : 'active';
+    updateUser({ ...u, status: nextStatus });
+    refresh();
+    showToast(`Usuário ${nextStatus === 'active' ? 'ativado' : 'desativado'}.`);
   }
 
   // ── Structure handlers ─────────────────────────────────────────────────────
@@ -390,46 +376,51 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     const geo = isUtmCoord(structureForm.coordX, structureForm.coordY)
       ? utmToLatLng(structureForm.coordX, structureForm.coordY)
       : { lat: structureForm.coordY, lng: structureForm.coordX };
-    const structureData = {
-      ...structureForm,
+    const structureData: Structure = {
+      id: editingStructure?.id || generateId(),
+      name: structureForm.name,
+      type: structureForm.type,
+      classe: structureForm.classe,
       coordX: structureForm.coordX,
       coordY: structureForm.coordY,
       lat: geo.lat,
       lng: geo.lng,
+      progressiva: structureForm.progressiva,
+      deflexao: structureForm.deflexao,
+      alturaUtil: structureForm.alturaUtil,
+      vanFrente: structureForm.vanFrente,
+      cotaCentro: structureForm.cotaCentro,
+      lt: structureForm.lt,
+      voltage: structureForm.voltage,
+      cadeiaCondutor: structureForm.cadeiaCondutor,
+      qtdCadeias: structureForm.qtdCadeias,
+      cadeiaParaRaios: structureForm.cadeiaParaRaios,
+      qtdCadeiasPR: structureForm.qtdCadeiasPR,
+      estruturaCritica: structureForm.estruturaCritica,
+      status: structureForm.status,
+      observation: structureForm.observation,
+      notes: structureForm.notes,
+      createdBy: editingStructure?.createdBy || user.id,
+      createdAt: editingStructure?.createdAt || new Date().toISOString(),
     };
-    try {
-      if (editingStructure) {
-        await backendStore.structureStore.update(editingStructure.id, {
-          ...editingStructure,
-          ...structureData,
-        });
-        showToast('Estrutura atualizada com sucesso!');
-      } else {
-        await backendStore.structureStore.create({
-          id: generateId(),
-          ...structureData,
-          createdBy: user.id,
-          createdAt: new Date().toISOString(),
-        });
-        showToast('Estrutura criada com sucesso!');
-      }
-      await refresh();
-      setShowStructureForm(false);
-    } catch (error) {
-      console.error('Erro ao salvar estrutura:', error);
-      showToast('Erro ao salvar estrutura. Verifique a conexão com o backend.');
+
+    if (editingStructure) {
+      updateStructure({ ...editingStructure, ...structureData });
+      showToast('Estrutura atualizada com sucesso!');
+    } else {
+      addStructure(structureData);
+      showToast('Estrutura criada com sucesso!');
     }
+
+    refresh();
+    setShowStructureForm(false);
   }
 
   async function handleDeleteStructure(s: Structure) {
-    try {
-      await backendStore.structureStore.delete(s.id);
-      await refresh();
-      setConfirmDeleteStructure(null);
-      showToast('Estrutura excluída.');
-    } catch (error) {
-      showToast('Erro ao excluir estrutura.');
-    }
+    deleteStructure(s.id);
+    refresh();
+    setConfirmDeleteStructure(null);
+    showToast('Estrutura excluída.');
   }
 
   // ── Component rule handlers ────────────────────────────────────────────────
@@ -450,23 +441,21 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
   async function handleSaveComponent() {
     if (!componentForm.name) { showToast('Informe o nome do componente.'); return; }
     const idSlug = componentForm.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    try {
-      if (editingComponent) {
-        await backendStore.componentStore.update(editingComponent.id, { ...editingComponent, ...componentForm });
-        showToast('Componente atualizado!');
-      } else {
-        await backendStore.componentStore.create({ id: `${idSlug}_${generateId()}`, ...componentForm });
-        showToast('Componente criado!');
-      }
-      await refresh();
-      setShowComponentForm(false);
-    } catch (error) {
-      showToast('Erro ao salvar componente.');
+
+    if (editingComponent) {
+      updateChecklistComponent({ ...editingComponent, ...componentForm });
+      showToast('Componente atualizado!');
+    } else {
+      addChecklistComponent({ id: `${idSlug}_${generateId()}`, ...componentForm });
+      showToast('Componente criado!');
     }
+
+    refresh();
+    setShowComponentForm(false);
   }
 
   async function handleDeleteComponent(c: ComponentRule) {
-    await backendStore.componentStore.delete(c.id);
+    deleteChecklistComponent(c.id);
     refresh();
     setConfirmDeleteComponent(null);
     showToast('Componente excluído.');

@@ -103,26 +103,37 @@ export function MapComponent({
     const validPoints: L.LatLngTuple[] = [];
 
     structs.forEach((s) => {
-      const hasUtm = s.coordX != null && s.coordY != null && isUtmCoord(s.coordX, s.coordY);
+      const coordX = Number(s.coordX);
+      const coordY = Number(s.coordY);
+      const fallbackLat = Number(s.lat ?? s.coordY ?? 0);
+      const fallbackLng = Number(s.lng ?? s.coordX ?? 0);
+      const progressiva = Number.isFinite(Number(s.progressiva)) ? Number(s.progressiva) : 0;
+
+      const hasUtm = Number.isFinite(coordX) && Number.isFinite(coordY) && isUtmCoord(coordX, coordY);
       const geo = hasUtm
-        ? utmToLatLng(s.coordX, s.coordY)
-        : { lat: s.coordY ?? s.lat ?? 0, lng: s.coordX ?? s.lng ?? 0 };
+        ? utmToLatLng(coordX, coordY)
+        : { lat: Number.isFinite(fallbackLat) ? fallbackLat : 0, lng: Number.isFinite(fallbackLng) ? fallbackLng : 0 };
 
-      if (geo.lat == null || geo.lng == null || (geo.lat === 0 && geo.lng === 0)) return;
+      const lat = Number(geo.lat);
+      const lng = Number(geo.lng);
 
-      validPoints.push([geo.lat, geo.lng]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+      if (lat === 0 && lng === 0) return;
+
+      validPoints.push([lat, lng]);
 
       const color = STATUS_COLORS[s.status] || '#6b7280';
-      const marker = L.marker([geo.lat, geo.lng], { icon: makeIcon(color) });
+      const marker = L.marker([lat, lng], { icon: makeIcon(color) });
 
       const popupContent = `
         <div style="font-family:sans-serif;min-width:160px;">
-          <div style="font-weight:600;color:#193A2A;font-size:13px;margin-bottom:4px;">${s.name}</div>
-          <div style="font-size:11px;color:#555;margin-bottom:2px;">Tipo: ${s.type}</div>
-          <div style="font-size:11px;color:#555;margin-bottom:2px;">Progressiva: ${s.progressiva.toLocaleString('pt-BR')} m</div>
-          <div style="font-size:11px;color:#555;margin-bottom:6px;">${s.lt}</div>
+          <div style="font-weight:600;color:#193A2A;font-size:13px;margin-bottom:4px;">${s.name || 'Estrutura sem nome'}</div>
+          <div style="font-size:11px;color:#555;margin-bottom:2px;">Tipo: ${s.type || '—'}</div>
+          <div style="font-size:11px;color:#555;margin-bottom:2px;">Progressiva: ${progressiva.toLocaleString('pt-BR')} m</div>
+          <div style="font-size:11px;color:#555;margin-bottom:6px;">${s.lt || '—'}</div>
           <div style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:12px;background:${color};color:white;">
-            ${STATUS_LABELS[s.status] || s.status}
+            ${STATUS_LABELS[s.status] || s.status || 'Sem status'}
           </div>
         </div>
       `;
@@ -233,7 +244,7 @@ export function MapComponent({
       pendingMarkerRef.current = null;
     }
 
-    if (pendingPin) {
+    if (pendingPin && Number.isFinite(pendingPin.lat) && Number.isFinite(pendingPin.lng)) {
       pendingMarkerRef.current = L.marker([pendingPin.lat, pendingPin.lng], {
         icon: makeAddIcon(),
       }).addTo(map);
