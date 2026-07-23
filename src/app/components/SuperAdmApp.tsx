@@ -174,12 +174,17 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
 
   async function refresh() {
     const store = getStore();
-    // Preenchimento imediato e otimista a partir do estado local; a lista de
-    // usuários é substituída abaixo pela fonte canônica do backend quando
-    // disponível — ela é a tabela normalizada, sempre mantida atualizada, e
-    // é o motivo pelo qual "Bases de Dados" e "Usuários" podiam mostrar
-    // contagens diferentes (este painel usava apenas o blob local, que pode
-    // ficar desatualizado).
+    // IMPORTANTE: a lista de usuários deve vir sempre do estado local
+    // (store.users), nunca de um refetch de /api/users aqui. addUser/
+    // updateUser/deleteUser já atualizam o blob local imediatamente e de
+    // forma confiável — mas só escrevem em /api/users quando a flag
+    // REQUIRE_BACKEND está ativa (desligada por padrão), então a tabela
+    // REST fica desatualizada em relação a ações do usuário. Um refresh()
+    // que sobrescrevesse a lista local com esse REST desatualizado logo
+    // após excluir/editar um usuário desfazia a ação na tela (regressão
+    // real: excluir um usuário "revertia sozinho"). A reconciliação inicial
+    // entre o blob local e /api/users já acontece em loadFromBackend(), no
+    // boot do app — então o blob local já chega aqui correto.
     setUsers(store.users);
     setStructures(store.structures);
     setServiceOrders(store.serviceOrders);
@@ -203,13 +208,14 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     if (!backendConnectedRef.current) return;
 
     try {
-      const [remoteUsers] = await Promise.all([
+      // Apenas verifica conectividade — os resultados não substituem o
+      // estado local exibido (ver comentário acima em setUsers(store.users)).
+      await Promise.all([
         backendStore.userStore.getAll(),
         backendStore.structureStore.getAll(),
         backendStore.componentStore.getAll(),
         backendStore.serviceOrderStore.getAll(),
       ]);
-      setUsers(remoteUsers);
     } catch (error) {
       console.error('Falha ao carregar dados do backend:', error);
       setBackendConnected(false);
