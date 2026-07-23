@@ -14,7 +14,8 @@ import {
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import type { ServiceOrder, Structure } from '../../data/types';
+import type { ServiceOrder, Structure, InspectionType } from '../../data/types';
+import { INSPECTION_TYPES } from '../../data/types';
 
 interface ReportPanelProps {
   orders: ServiceOrder[];
@@ -25,7 +26,7 @@ interface ReportPanelProps {
     dateTo: string;
     technicianId: string;
     orderType: 'all' | 'inspecao' | 'execucao';
-    inspectionType: 'all' | 'MI' | 'PA';
+    inspectionType: 'all' | InspectionType;
     status: 'all' | 'pendente' | 'em-andamento' | 'pausado' | 'concluido' | 'cancelado';
     structureId: string;
     om: string;
@@ -471,15 +472,15 @@ export function ReportPanel({
             </div>
           </div>
 
-          {/* Inspection type (MI/PA) */}
+          {/* Inspection type */}
           <div>
             <label className="text-xs text-gray-500 mb-1.5 block">Tipo de Inspeção</label>
-            <div className="flex gap-2">
-              {(['all', 'MI', 'PA'] as const).map((it) => (
+            <div className="grid grid-cols-4 gap-2">
+              {(['all', ...INSPECTION_TYPES] as const).map((it) => (
                 <button
                   key={it}
                   onClick={() => setReportFilters((f) => ({ ...f, inspectionType: it }))}
-                  className="flex-1 text-xs py-1.5 rounded-lg border-2 transition-all"
+                  className="text-xs py-1.5 rounded-lg border-2 transition-all"
                   style={{
                     borderColor: reportFilters.inspectionType === it ? '#AA8933' : '#e5e7eb',
                     backgroundColor: reportFilters.inspectionType === it ? '#fff8e1' : '#fff',

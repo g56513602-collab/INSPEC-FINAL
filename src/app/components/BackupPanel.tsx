@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { getStore, saveStore } from '@/app/data/store';
+import { getStore, saveStore, loadFromBackend } from '@/app/data/store';
 import type { AppData } from '@/app/data/types';
 import * as api from '@/api/client';
 import {
@@ -52,10 +52,19 @@ export function BackupPanel({ onClose }: BackupPanelProps) {
 
   // ── EXPORT FUNCTIONS ──────────────────────────────────────────────────────────
 
-  const handleExportJSON = () => {
+  // Backup é a última linha de defesa contra perda de dados — nunca deve
+  // confiar apenas no que este dispositivo tem em cache no momento. Busca o
+  // estado mais recente do servidor primeiro (best-effort; loadFromBackend
+  // já tem timeout e cai para o cache local se o backend não responder).
+  const getFreshStore = async (): Promise<AppData> => {
+    await loadFromBackend();
+    return getStore();
+  };
+
+  const handleExportJSON = async () => {
     try {
       setIsProcessing(true);
-      const store = getStore();
+      const store = await getFreshStore();
       const json = exportDataAsJSON(store);
       const filename = `inspec360_backup_${new Date().toISOString().split('T')[0]}.json`;
       downloadFile(json, filename, 'json');
@@ -67,10 +76,10 @@ export function BackupPanel({ onClose }: BackupPanelProps) {
     }
   };
 
-  const handleExportStructuresCSV = () => {
+  const handleExportStructuresCSV = async () => {
     try {
       setIsProcessing(true);
-      const store = getStore();
+      const store = await getFreshStore();
       const csv = exportStructuresAsCSV(store);
       const filename = `inspec360_estruturas_${new Date().toISOString().split('T')[0]}.csv`;
       downloadFile(csv, filename, 'csv');
@@ -82,10 +91,10 @@ export function BackupPanel({ onClose }: BackupPanelProps) {
     }
   };
 
-  const handleExportOrdersCSV = () => {
+  const handleExportOrdersCSV = async () => {
     try {
       setIsProcessing(true);
-      const store = getStore();
+      const store = await getFreshStore();
       const csv = exportServiceOrdersAsCSV(store);
       const filename = `inspec360_ordens_${new Date().toISOString().split('T')[0]}.csv`;
       downloadFile(csv, filename, 'csv');
@@ -97,10 +106,10 @@ export function BackupPanel({ onClose }: BackupPanelProps) {
     }
   };
 
-  const handleCreateBackup = () => {
+  const handleCreateBackup = async () => {
     try {
       setIsProcessing(true);
-      const store = getStore();
+      const store = await getFreshStore();
       createBackupInStorage(store);
       refreshBackupsList();
       showToast('✅ Backup criado com sucesso!', 'success');

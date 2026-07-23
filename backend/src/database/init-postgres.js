@@ -82,7 +82,7 @@ export async function initializeDatabase() {
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL CHECK(type IN ('inspecao', 'execucao')),
       om TEXT,
-      "inspectionType" TEXT CHECK("inspectionType" IN ('MI', 'PA')),
+      "inspectionType" TEXT CHECK("inspectionType" IN ('Patrulhamento', 'Minuciosa', 'Termográfica', 'Lavagem', 'Limpeza', 'Outras')),
       "structureId" TEXT NOT NULL,
       "structureName" TEXT NOT NULL,
       "supervisorId" TEXT NOT NULL,

@@ -29,7 +29,8 @@ import {
   addServiceOrder,
   generateId,
 } from '../data/store';
-import type { Structure, ServiceOrder, StructureType } from '../data/types';
+import type { Structure, ServiceOrder, StructureType, InspectionType } from '../data/types';
+import { INSPECTION_TYPES } from '../data/types';
 import type { User } from '../App';
 import { CompletedOrdersTab } from './supervisor/CompletedOrdersTab';
 import { ReportPanel } from './supervisor/ReportPanel';
@@ -100,7 +101,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
   const [orderForm, setOrderForm] = useState({
     type: 'inspecao' as 'inspecao' | 'execucao',
     om: '',
-    inspectionType: 'MI' as 'MI' | 'PA',
+    inspectionType: 'Patrulhamento' as InspectionType,
     structureId: '',
     technicianId: '',
     priority: 'media' as 'alta' | 'media' | 'baixa',
@@ -127,7 +128,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
     dateTo: '',
     technicianId: '',
     orderType: 'all' as 'all' | 'inspecao' | 'execucao',
-    inspectionType: 'all' as 'all' | 'MI' | 'PA',
+    inspectionType: 'all' as 'all' | InspectionType,
     status: 'all' as 'all' | 'pendente' | 'em-andamento' | 'pausado' | 'concluido' | 'cancelado',
     structureId: '',
     om: '',
@@ -264,7 +265,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
     setOrderForm({
       type: 'inspecao',
       om: '',
-      inspectionType: 'MI',
+      inspectionType: 'Patrulhamento',
       structureId: '',
       technicianId: '',
       priority: 'media',
@@ -322,8 +323,10 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
     concluidos: dashboardOrders.filter((o) => o.status === 'concluido').length,
     emAndamento: dashboardOrders.filter((o) => o.status === 'em-andamento' || o.status === 'pausado').length,
     pendentes: dashboardOrders.filter((o) => o.status === 'pendente').length,
-    miCount: dashboardOrders.filter((o) => o.inspectionType === 'MI').length,
-    paCount: dashboardOrders.filter((o) => o.inspectionType === 'PA').length,
+    byInspectionType: INSPECTION_TYPES.map((t) => ({
+      type: t,
+      count: dashboardOrders.filter((o) => o.inspectionType === t).length,
+    })).filter((t) => t.count > 0),
     avgDurationDays,
   };
 
@@ -376,7 +379,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
               </span>
               {viewOrder.inspectionType && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  {viewOrder.inspectionType === 'MI' ? 'MI – Detalhada' : 'PA – Patrulhamento'}
+                  {viewOrder.inspectionType}
                 </span>
               )}
               <span className="text-xs text-gray-500">{viewOrder.id}</span>
@@ -623,7 +626,6 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                 { label: 'Atrasados', value: stats.atrasados, icon: AlertTriangle, color: '#ea580c' },
                 { label: 'Pendentes', value: stats.pendentes, icon: ClipboardList, color: '#6b7280' },
                 { label: 'Concluídos', value: stats.concluidos, icon: CheckCircle2, color: '#16a34a' },
-                { label: 'MI / PA', value: `${stats.miCount} / ${stats.paCount}`, icon: ClipboardList, color: '#2563eb' },
                 { label: 'Duração Média (dias)', value: stats.avgDurationDays, icon: Clock, color: '#7c3aed' },
               ].map((stat) => {
                 const Icon = stat.icon;
@@ -640,6 +642,23 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                 );
               })}
             </div>
+
+            {/* Breakdown by inspection type */}
+            {stats.byInspectionType.length > 0 && (
+              <Card className="p-4 shadow-sm">
+                <h3 className="text-xs text-gray-500 uppercase tracking-wide mb-2">Por Tipo de Inspeção</h3>
+                <div className="flex flex-wrap gap-2">
+                  {stats.byInspectionType.map(({ type, count }) => (
+                    <span
+                      key={type}
+                      className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                    >
+                      {type}: {count}
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             {/* Quick access to completed orders */}
             {stats.concluidos > 0 && (
@@ -1206,23 +1225,23 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
               />
             </div>
 
-            {/* Inspection type (MI/PA) — only for inspections */}
+            {/* Inspection type — only for inspections */}
             {orderForm.type === 'inspecao' && (
               <div>
                 <label className="text-xs text-gray-600 mb-2 block">Tipo de Inspeção *</label>
-                <div className="flex gap-2">
-                  {(['MI', 'PA'] as const).map((it) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {INSPECTION_TYPES.map((it) => (
                     <button
                       key={it}
                       onClick={() => setOrderForm((f) => ({ ...f, inspectionType: it }))}
-                      className="flex-1 py-2.5 rounded-xl border-2 text-sm transition-all"
+                      className="py-2.5 rounded-xl border-2 text-xs transition-all"
                       style={{
                         borderColor: orderForm.inspectionType === it ? '#193A2A' : '#e5e7eb',
                         backgroundColor: orderForm.inspectionType === it ? '#193A2A' : '#fff',
                         color: orderForm.inspectionType === it ? '#fff' : '#6b7280',
                       }}
                     >
-                      {it === 'MI' ? 'MI – Inspeção Detalhada' : 'PA – Patrulhamento'}
+                      {it}
                     </button>
                   ))}
                 </div>

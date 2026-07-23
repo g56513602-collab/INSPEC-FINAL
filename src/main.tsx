@@ -5,8 +5,6 @@
   import "./styles/pwa.css";
   import { OfflineProvider } from "./context/OfflineContext.tsx";
   import { OfflineIndicator } from "./components/OfflineIndicator.tsx";
-  import backendStore from './app/data/backendStore';
-  import { applyBackendState } from './app/data/store';
 
 // Register Service Worker for offline support
 if ("serviceWorker" in navigator) {
@@ -47,27 +45,28 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-async function initAndRender() {
+function initAndRender() {
   const rootEl = document.getElementById('root');
   if (!rootEl) throw new Error('Root element not found');
 
-  try {
-    const connected = await backendStore.syncManager.checkConnection();
-    if (connected) {
-      console.log('[Init] Backend disponível — sincronizando estado inicial');
-      try {
-        const data = await backendStore.syncAllData();
-        if (data) applyBackendState(data);
-      } catch (err) {
-        console.warn('[Init] Falha ao obter estado inicial do backend:', err);
-      }
-    } else {
-      console.warn('[Init] Backend indisponível — iniciando com estado local');
-    }
-  } catch (err) {
-    console.error('[Init] Erro checando backend:', err);
-  }
-
+  // A hidratação inicial a partir do backend acontece dentro de <App/>, via
+  // loadFromBackend() (busca o blob correto de /api/state e faz merge com os
+  // padrões locais), que já bloqueia a renderização da UI real até concluir.
+  //
+  // Havia aqui uma segunda hidratação, via syncAllData()+applyBackendState(),
+  // que buscava dados das tabelas REST normalizadas (users/structures/
+  // serviceOrders/etc.) e SUBSTITUÍA todo o estado local por elas antes mesmo
+  // do React montar. Essas tabelas não são atualizadas de forma confiável no
+  // uso normal do app — diagnosticamos estruturas e ordens de serviço sempre
+  // vazias nelas — então essa substituição apagava estruturas/ordens de
+  // serviço reais a cada boot do app (e alguns campos, como inspectionRecords/
+  // executionRecords/checklistComponents, tinham nomes diferentes dos
+  // esperados e desapareciam do armazenamento local por completo, sendo
+  // recriados com os dados de exemplo padrão). Isso é a causa raiz confirmada
+  // de "perco todas as inspeções toda vez que atualizo o sistema": qualquer
+  // reload do app (que é exatamente o que acontece após um deploy) disparava
+  // essa substituição. Removida — loadFromBackend() é a única fonte de
+  // hidratação inicial agora.
   createRoot(rootEl).render(
     <OfflineProvider>
       <App />
@@ -76,7 +75,9 @@ async function initAndRender() {
   );
 }
 
-initAndRender().catch(err => {
+try {
+  initAndRender();
+} catch (err) {
   console.error('Erro ao inicializar a aplicação:', err);
   // fallback: render anyway to allow troubleshooting
   createRoot(document.getElementById('root')!).render(
@@ -85,5 +86,5 @@ initAndRender().catch(err => {
       <OfflineIndicator />
     </OfflineProvider>
   );
-});
+}
   

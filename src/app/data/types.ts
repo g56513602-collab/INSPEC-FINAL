@@ -174,8 +174,17 @@ export type OrderStatus =
   | 'concluido'
   | 'cancelado';
 export type Priority = 'alta' | 'media' | 'baixa';
-// MI = Inspeção Detalhada (Manutenção Inspetiva), PA = Inspeção de Patrulhamento
-export type InspectionType = 'MI' | 'PA';
+export type InspectionType =
+  | 'Patrulhamento'
+  | 'Minuciosa'
+  | 'Termográfica'
+  | 'Lavagem'
+  | 'Limpeza'
+  | 'Outras';
+
+export const INSPECTION_TYPES: InspectionType[] = [
+  'Patrulhamento', 'Minuciosa', 'Termográfica', 'Lavagem', 'Limpeza', 'Outras',
+];
 
 export interface ServiceOrder {
   id: string;

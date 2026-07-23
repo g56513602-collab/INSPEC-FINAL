@@ -32,25 +32,6 @@ function dispatchBackendSuccess(context: string) {
 const STORAGE_KEY = 'inspec360_v22_data';
 const LOG_RESET_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
-// Aplicar estado vindo do backend no localStorage e notificar a aplicação
-export function applyBackendState(state: AppData): void {
-  try {
-    // O backend REST (/api/structures) não possui colunas lat/lng — apenas
-    // coordX/coordY (UTM). Sem recalcular aqui, estruturas recém-sincronizadas
-    // ficam sem lat/lng e o marcador some do mapa (ex.: logo após uma edição
-    // disparar uma resincronização). fillStructureCoordinates recalcula
-    // lat/lng a partir de coordX/coordY sempre que possível.
-    if (Array.isArray(state.structures)) {
-      state.structures = state.structures.map((s) => fillStructureCoordinates({ ...s }));
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    window.dispatchEvent(new CustomEvent('dataRefresh', { detail: { timestamp: Date.now(), source: 'backend' } }));
-    console.log('[Store] Estado do backend aplicado ao armazenamento local');
-  } catch (err) {
-    console.error('[Store] Falha ao aplicar estado do backend:', err);
-  }
-}
-
 // ─── Dados iniciais ──────────────────────────────────────────────────────────
 
 const INITIAL_USERS: SystemUser[] = [
@@ -217,7 +198,7 @@ function buildInitialInspection(): ComponentInspection[] {
 
 const INITIAL_ORDERS: ServiceOrder[] = [
   {
-    id: 'os1', type: 'inspecao', om: 'OM-2026-00101', inspectionType: 'MI', structureId: 's2', technicianId: 'u1', supervisorId: 'u3',
+    id: 'os1', type: 'inspecao', om: 'OM-2026-00101', inspectionType: 'Minuciosa', structureId: 's2', technicianId: 'u1', supervisorId: 'u3',
     priority: 'alta', deadline: '2026-05-10', scheduledDate: '2026-05-07', status: 'pendente',
     createdAt: '2026-04-28T10:00:00Z', photos: [], activityLog: [],
   },
@@ -233,7 +214,7 @@ const INITIAL_ORDERS: ServiceOrder[] = [
     photos: [], activityLog: [],
   },
   {
-    id: 'os3', type: 'inspecao', om: 'OM-2026-00103', inspectionType: 'PA', structureId: 's4', technicianId: 'u2', supervisorId: 'u3',
+    id: 'os3', type: 'inspecao', om: 'OM-2026-00103', inspectionType: 'Patrulhamento', structureId: 's4', technicianId: 'u2', supervisorId: 'u3',
     priority: 'media', deadline: '2026-04-30', scheduledDate: '2026-04-29', status: 'pausado',
     createdAt: '2026-04-25T09:00:00Z', startedAt: '2026-04-29T07:30:00Z', pausedAt: '2026-04-29T12:00:00Z',
     photos: [],
@@ -261,7 +242,7 @@ const INITIAL_ORDERS: ServiceOrder[] = [
     photos: [], activityLog: [],
   },
   {
-    id: 'os5', type: 'inspecao', om: 'OM-2026-00105', inspectionType: 'MI', structureId: 's5', technicianId: 'u1', supervisorId: 'u3',
+    id: 'os5', type: 'inspecao', om: 'OM-2026-00105', inspectionType: 'Minuciosa', structureId: 's5', technicianId: 'u1', supervisorId: 'u3',
     priority: 'media', deadline: '2026-05-12', scheduledDate: '2026-05-09', status: 'pendente',
     createdAt: '2026-04-30T08:00:00Z', photos: [], activityLog: [],
   },
@@ -418,13 +399,27 @@ export async function loadFromBackend(): Promise<void> {
       const migrated: AppData = {
         ...getInitialData(),
         ...state,
-        structures: ((state.structures ?? []) as Structure[]).map((s) => ({
-          ...s,
-          coordX: s.coordX ?? s.lng ?? 0,
-          coordY: s.coordY ?? s.lat ?? 0,
-        })),
+        structures: ((state.structures ?? []) as Structure[]).map((s) => fillStructureCoordinates({ ...s })),
       };
+
+      // A tabela normalizada de usuários (/api/users) é mantida sempre
+      // atualizada pelo backend e pode conter registros que o blob de estado
+      // ainda não conhece (ex.: usuários criados antes desta reconciliação
+      // existir, causa raiz confirmada da divergência entre as telas
+      // "Usuários" e "Bases de Dados"). Reconciliar aqui garante que toda
+      // tela que resolve nomes de usuário a partir de getStore().users veja
+      // a lista completa, não só a tela de administração de usuários.
+      try {
+        const remoteUsers = await backendStore.userStore.getAll();
+        const byId = new Map(migrated.users.map((u) => [u.id, u]));
+        remoteUsers.forEach((u) => byId.set(u.id, u));
+        migrated.users = [...byId.values()];
+      } catch {
+        // backend de usuários indisponível — segue apenas com o blob
+      }
+
       localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      window.dispatchEvent(new CustomEvent('dataRefresh', { detail: { timestamp: Date.now(), source: 'backend' } }));
     }
   } catch {
     // Network error or timeout — continue with localStorage

@@ -231,7 +231,7 @@ function generateOrderPDF(
     </div>
     <div class="cover-meta-item">
       <label>Tipo</label>
-      <span>${order.type === 'inspecao' ? 'Inspeção' : 'Execução de Serviço'}${order.inspectionType ? ` (${order.inspectionType === 'MI' ? 'MI – Detalhada' : 'PA – Patrulhamento'})` : ''}</span>
+      <span>${order.type === 'inspecao' ? 'Inspeção' : 'Execução de Serviço'}${order.inspectionType ? ` (${order.inspectionType})` : ''}</span>
     </div>
     <div class="cover-meta-item">
       <label>Data de Conclusão</label>
@@ -491,7 +491,7 @@ export function CompletedOrdersTab({
                     </span>
                     {selectedOrder.inspectionType && (
                       <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        {selectedOrder.inspectionType === 'MI' ? 'MI – Detalhada' : 'PA – Patrulhamento'}
+                        {selectedOrder.inspectionType}
                       </span>
                     )}
                   </div>
