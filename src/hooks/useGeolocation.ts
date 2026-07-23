@@ -1,11 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useOnlineStatus } from '@/context/OfflineContext';
+import type { GeolocationData } from '@/context/OfflineContext';
 
-export interface GeolocationData {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  timestamp: number;
-}
+export type { GeolocationData };
 
 interface UseGeolocationReturn {
   location: GeolocationData | null;
@@ -14,59 +10,19 @@ interface UseGeolocationReturn {
   requestLocation: () => void;
 }
 
+/**
+ * A localização é capturada automaticamente pelo OfflineProvider assim que o
+ * app abre (e mantida atualizada em segundo plano via watchPosition), então
+ * nenhum componente precisa mais solicitar/repetir a captura manualmente.
+ * requestLocation é mantido apenas por compatibilidade de interface (no-op).
+ */
 export function useGeolocation(): UseGeolocationReturn {
-  const [location, setLocation] = useState<GeolocationData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const requestLocation = () => {
-    if (!navigator.geolocation) {
-      setError('Geolocalização não suportada neste dispositivo');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: position.timestamp
-        });
-        setLoading(false);
-      },
-      (err) => {
-        // Mensagens de erro mais legíveis
-        let errorMsg = 'Erro ao obter localização';
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            errorMsg = 'Permissão negada para acessar localização. Verifique as configurações do navegador.';
-            break;
-          case err.POSITION_UNAVAILABLE:
-            errorMsg = 'Informação de localização não disponível. Tente em um local aberto.';
-            break;
-          case err.TIMEOUT:
-            errorMsg = 'Tempo limite excedido ao obter localização';
-            break;
-        }
-        setError(errorMsg);
-        setLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
-  };
+  const { location, locationError } = useOnlineStatus();
 
   return {
     location,
-    error,
-    loading,
-    requestLocation
+    error: locationError,
+    loading: false,
+    requestLocation: () => {},
   };
 }

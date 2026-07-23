@@ -34,6 +34,12 @@ import type { User } from '../App';
 import { CompletedOrdersTab } from './supervisor/CompletedOrdersTab';
 import { ReportPanel } from './supervisor/ReportPanel';
 import { useDataSync, forceSync } from '@/hooks/useDataSync';
+import { useOnlineStatus } from '@/context/OfflineContext';
+import {
+  computeStructureStatus,
+  STRUCTURE_STATUS_COLORS,
+  STRUCTURE_STATUS_LABELS,
+} from '../data/structureStatus';
 
 const MapComponent = lazy(() =>
   import('./supervisor/MapComponent').then((m) => ({ default: m.MapComponent }))
@@ -54,14 +60,6 @@ const STRUCTURE_TYPES: StructureType[] = [
   'Ângulo',
   'Estaiada',
 ];
-
-const STATUS_CONFIG = {
-  pendente: { label: 'Pendente', color: '#6b7280', bg: '#f3f4f6' },
-  'em-andamento': { label: 'Em Andamento', color: '#AA8933', bg: '#fff8e1' },
-  concluido: { label: 'Concluído', color: '#16a34a', bg: '#f0fdf4' },
-  anomalia: { label: 'Anomalia', color: '#dc2626', bg: '#fef2f2' },
-  atrasado: { label: 'Atrasado', color: '#ea580c', bg: '#fff7ed' },
-};
 
 const ORDER_STATUS_CONFIG = {
   pendente: { label: 'Pendente', color: '#6b7280', bg: '#f3f4f6' },
@@ -101,6 +99,8 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
   const [selectedStructureIds, setSelectedStructureIds] = useState<string[]>([]);
   const [orderForm, setOrderForm] = useState({
     type: 'inspecao' as 'inspecao' | 'execucao',
+    om: '',
+    inspectionType: 'MI' as 'MI' | 'PA',
     structureId: '',
     technicianId: '',
     priority: 'media' as 'alta' | 'media' | 'baixa',
@@ -127,8 +127,10 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
     dateTo: '',
     technicianId: '',
     orderType: 'all' as 'all' | 'inspecao' | 'execucao',
+    inspectionType: 'all' as 'all' | 'MI' | 'PA',
     status: 'all' as 'all' | 'pendente' | 'em-andamento' | 'pausado' | 'concluido' | 'cancelado',
     structureId: '',
+    om: '',
   });
   const [showReport, setShowReport] = useState(false);
 
@@ -223,8 +225,8 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
       ? selectedStructureIds 
       : (orderForm.structureId ? [orderForm.structureId] : []);
 
-    if (structuresToProcess.length === 0 || !orderForm.technicianId || !orderForm.deadline) {
-      showToast('Selecione estrutura(s), técnico e prazo.');
+    if (structuresToProcess.length === 0 || !orderForm.technicianId || !orderForm.deadline || !orderForm.om.trim()) {
+      showToast('Selecione estrutura(s), técnico, prazo e informe a OM.');
       return;
     }
 
@@ -233,6 +235,8 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
       const newOrder: ServiceOrder = {
         id: `os${generateId()}`,
         type: orderForm.type,
+        om: orderForm.om.trim(),
+        inspectionType: orderForm.type === 'inspecao' ? orderForm.inspectionType : undefined,
         structureId: structureId,
         technicianId: orderForm.technicianId,
         supervisorId: user.id,
@@ -259,6 +263,8 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
     setSelectedStructureIds([]);
     setOrderForm({
       type: 'inspecao',
+      om: '',
+      inspectionType: 'MI',
       structureId: '',
       technicianId: '',
       priority: 'media',
@@ -287,14 +293,38 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
     return store.users.find((u) => u.id === id)?.name || '—';
   }
 
+  // ── Dashboard filters ─────────────────────────────────────────────────────────
+  const [dashboardDateFrom, setDashboardDateFrom] = useState('');
+  const [dashboardDateTo, setDashboardDateTo] = useState('');
+  const { isOnline, pendingCount } = useOnlineStatus();
+
+  const dashboardOrders = orders.filter((o) => {
+    if (dashboardDateFrom && o.createdAt < dashboardDateFrom) return false;
+    if (dashboardDateTo && o.createdAt > dashboardDateTo + 'T23:59:59Z') return false;
+    return true;
+  });
+
   // ── Stats ─────────────────────────────────────────────────────────────────────
+  const completedWithDuration = dashboardOrders.filter((o) => o.status === 'concluido' && o.completedAt);
+  const avgDurationDays = completedWithDuration.length > 0
+    ? Math.round(
+        (completedWithDuration.reduce(
+          (sum, o) => sum + (new Date(o.completedAt!).getTime() - new Date(o.createdAt).getTime()),
+          0
+        ) / completedWithDuration.length) / (1000 * 60 * 60 * 24) * 10
+      ) / 10
+    : 0;
+
   const stats = {
     totalStructures: structures.length,
-    anomalias: structures.filter((s) => s.status === 'anomalia').length,
-    atrasados: orders.filter((o) => o.status !== 'concluido' && new Date(o.deadline) < new Date()).length,
-    concluidos: orders.filter((o) => o.status === 'concluido').length,
-    emAndamento: orders.filter((o) => o.status === 'em-andamento' || o.status === 'pausado').length,
-    pendentes: orders.filter((o) => o.status === 'pendente').length,
+    anomalias: structures.filter((s) => computeStructureStatus(s, orders) === 'anomalia').length,
+    atrasados: dashboardOrders.filter((o) => o.status !== 'concluido' && new Date(o.deadline) < new Date()).length,
+    concluidos: dashboardOrders.filter((o) => o.status === 'concluido').length,
+    emAndamento: dashboardOrders.filter((o) => o.status === 'em-andamento' || o.status === 'pausado').length,
+    pendentes: dashboardOrders.filter((o) => o.status === 'pendente').length,
+    miCount: dashboardOrders.filter((o) => o.inspectionType === 'MI').length,
+    paCount: dashboardOrders.filter((o) => o.inspectionType === 'PA').length,
+    avgDurationDays,
   };
 
   const filteredOrders = orders.filter((o) => {
@@ -344,6 +374,11 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
               >
                 {viewOrder.type === 'inspecao' ? 'Inspeção' : 'Execução'}
               </span>
+              {viewOrder.inspectionType && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  {viewOrder.inspectionType === 'MI' ? 'MI – Detalhada' : 'PA – Patrulhamento'}
+                </span>
+              )}
               <span className="text-xs text-gray-500">{viewOrder.id}</span>
             </div>
 
@@ -356,6 +391,10 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
             )}
 
             <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-gray-500">OM</div>
+                <div className="text-sm">{viewOrder.om || '—'}</div>
+              </div>
               <div>
                 <div className="text-xs text-gray-500">Técnico</div>
                 <div className="text-sm">{techName}</div>
@@ -539,6 +578,43 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
         {/* ── Dashboard ──────────────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
           <div className="p-4 space-y-4 max-w-3xl mx-auto">
+            {/* Date range filter */}
+            <div className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <Input
+                type="date"
+                className="text-sm"
+                value={dashboardDateFrom}
+                onChange={(e) => setDashboardDateFrom(e.target.value)}
+              />
+              <span className="text-xs text-gray-400">até</span>
+              <Input
+                type="date"
+                className="text-sm"
+                value={dashboardDateTo}
+                onChange={(e) => setDashboardDateTo(e.target.value)}
+              />
+              {(dashboardDateFrom || dashboardDateTo) && (
+                <button
+                  onClick={() => { setDashboardDateFrom(''); setDashboardDateTo(''); }}
+                  className="text-xs text-red-400 hover:text-red-600 shrink-0"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+
+            {/* Sync status */}
+            <Card className="p-3 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-xs text-gray-600">
+                  {isOnline ? 'Online' : 'Offline'}
+                  {pendingCount > 0 && ` · ${pendingCount} registro${pendingCount !== 1 ? 's' : ''} pendente${pendingCount !== 1 ? 's' : ''} de sincronização`}
+                </span>
+              </div>
+            </Card>
+
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Estruturas', value: stats.totalStructures, icon: Building2, color: '#193A2A' },
@@ -547,6 +623,8 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                 { label: 'Atrasados', value: stats.atrasados, icon: AlertTriangle, color: '#ea580c' },
                 { label: 'Pendentes', value: stats.pendentes, icon: ClipboardList, color: '#6b7280' },
                 { label: 'Concluídos', value: stats.concluidos, icon: CheckCircle2, color: '#16a34a' },
+                { label: 'MI / PA', value: `${stats.miCount} / ${stats.paCount}`, icon: ClipboardList, color: '#2563eb' },
+                { label: 'Duração Média (dias)', value: stats.avgDurationDays, icon: Clock, color: '#7c3aed' },
               ].map((stat) => {
                 const Icon = stat.icon;
                 return (
@@ -639,17 +717,19 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                 Status das Estruturas
               </h2>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-                  const count = structures.filter((s) => s.status === key).length;
+                {(Object.keys(STRUCTURE_STATUS_LABELS) as Array<keyof typeof STRUCTURE_STATUS_LABELS>).map((key) => {
+                  const color = STRUCTURE_STATUS_COLORS[key];
+                  const label = STRUCTURE_STATUS_LABELS[key];
+                  const count = structures.filter((s) => computeStructureStatus(s, orders) === key).length;
                   return (
                     <div
                       key={key}
                       className="flex items-center gap-2 p-3 rounded-xl"
-                      style={{ backgroundColor: cfg.bg }}
+                      style={{ backgroundColor: `${color}1a` }}
                     >
-                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
-                      <span className="text-xs text-gray-700 flex-1">{cfg.label}</span>
-                      <span className="text-sm" style={{ color: cfg.color }}>{count}</span>
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-xs text-gray-700 flex-1">{label}</span>
+                      <span className="text-sm" style={{ color }}>{count}</span>
                     </div>
                   );
                 })}
@@ -700,6 +780,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
               >
                 <MapComponent
                   structures={structures}
+                  orders={orders}
                   onMapClick={handleMapClick}
                   pendingPin={pendingPin}
                   onStructureClick={setSelectedMapStructure}
@@ -726,13 +807,12 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                     </div>
                     <div className="flex items-center gap-2">
                       <span
-                        className="text-xs px-2 py-0.5 rounded-full"
+                        className="text-xs px-2 py-0.5 rounded-full text-white"
                         style={{
-                          color: STATUS_CONFIG[selectedMapStructure.status]?.color,
-                          backgroundColor: STATUS_CONFIG[selectedMapStructure.status]?.bg,
+                          backgroundColor: STRUCTURE_STATUS_COLORS[computeStructureStatus(selectedMapStructure, orders)],
                         }}
                       >
-                        {STATUS_CONFIG[selectedMapStructure.status]?.label}
+                        {STRUCTURE_STATUS_LABELS[computeStructureStatus(selectedMapStructure, orders)]}
                       </span>
                       <button onClick={() => setSelectedMapStructure(null)}>
                         <X className="w-4 h-4 text-gray-400" />
@@ -929,6 +1009,11 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                               >
                                 {cfg.label}
                               </span>
+                              {order.inspectionType && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                  {order.inspectionType}
+                                </span>
+                              )}
                               {isLate && (
                                 <span className="text-[10px] text-red-500">⚠ Atrasado</span>
                               )}
@@ -937,6 +1022,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                               {getStructureName(order.structureId)}
                             </div>
                             <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                              <span className="text-gray-400">{order.om || '—'}</span>
                               <span className="flex items-center gap-1">
                                 <Users className="w-3 h-3" />
                                 {getTechnicianName(order.technicianId)}
@@ -989,13 +1075,14 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
             ) : (
               <div className="space-y-2">
                 {filteredStructures.map((s) => {
-                  const cfg = STATUS_CONFIG[s.status];
+                  const displayStatus = computeStructureStatus(s, orders);
+                  const color = STRUCTURE_STATUS_COLORS[displayStatus];
                   return (
                     <Card key={s.id} className="p-4 shadow-sm">
                       <div className="flex items-start gap-3">
                         <div
                           className="w-3 h-3 rounded-full mt-1.5 shrink-0"
-                          style={{ backgroundColor: cfg.color }}
+                          style={{ backgroundColor: color }}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
@@ -1008,10 +1095,10 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                               </div>
                             </div>
                             <span
-                              className="text-[10px] px-2 py-0.5 rounded-full shrink-0"
-                              style={{ color: cfg.color, backgroundColor: cfg.bg }}
+                              className="text-[10px] px-2 py-0.5 rounded-full shrink-0 text-white"
+                              style={{ backgroundColor: color }}
                             >
-                              {cfg.label}
+                              {STRUCTURE_STATUS_LABELS[displayStatus]}
                             </span>
                           </div>
                         </div>
@@ -1107,6 +1194,40 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                 ))}
               </div>
             </div>
+
+            {/* OM */}
+            <div>
+              <label className="text-xs text-gray-600 mb-1 block">OM (Ordem de Manutenção) *</label>
+              <Input
+                className="text-sm"
+                placeholder="Ex.: OM-2026-00123"
+                value={orderForm.om}
+                onChange={(e) => setOrderForm((f) => ({ ...f, om: e.target.value }))}
+              />
+            </div>
+
+            {/* Inspection type (MI/PA) — only for inspections */}
+            {orderForm.type === 'inspecao' && (
+              <div>
+                <label className="text-xs text-gray-600 mb-2 block">Tipo de Inspeção *</label>
+                <div className="flex gap-2">
+                  {(['MI', 'PA'] as const).map((it) => (
+                    <button
+                      key={it}
+                      onClick={() => setOrderForm((f) => ({ ...f, inspectionType: it }))}
+                      className="flex-1 py-2.5 rounded-xl border-2 text-sm transition-all"
+                      style={{
+                        borderColor: orderForm.inspectionType === it ? '#193A2A' : '#e5e7eb',
+                        backgroundColor: orderForm.inspectionType === it ? '#193A2A' : '#fff',
+                        color: orderForm.inspectionType === it ? '#fff' : '#6b7280',
+                      }}
+                    >
+                      {it === 'MI' ? 'MI – Inspeção Detalhada' : 'PA – Patrulhamento'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Structure - Multiple selection */}
             <div>

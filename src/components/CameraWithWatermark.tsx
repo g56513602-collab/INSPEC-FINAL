@@ -16,128 +16,73 @@ export function CameraWithWatermark({
   onPhotoCapture,
   onClose
 }: CameraWithWatermarkProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [mode, setMode] = useState<'choose' | 'camera' | 'gallery'>('choose');
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { location } = useGeolocation();
 
-
-  // ============ CÂMERA ============
-  const startCamera = async () => {
-    try {
-      setError(null);
-      setMode('camera');
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err: any) {
-      let msg = 'Erro ao acessar câmera';
-      if (err.name === 'NotAllowedError') {
-        msg = 'Permissão de câmera negada. Verifique suas configurações de privacidade.';
-      } else if (err.name === 'NotFoundError') {
-        msg = 'Câmera não encontrada. Use a galeria como alternativa.';
-      }
-      setError(msg);
-      setMode('choose');
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-    }
-  };
-
-  const capturePhoto = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    try {
-      setIsProcessing(true);
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      ctx.drawImage(videoRef.current, 0, 0);
-
-      const blob = await addWatermarkToCanvas(canvas, {
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        accuracy: location?.accuracy,
-        componentName,
-        anomalyName
-      });
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreviewImage(reader.result as string);
-        stopCamera();
-      };
-      reader.readAsDataURL(blob);
-    } catch (err) {
-      setError('Erro ao capturar foto. Tente novamente.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // ============ GALERIA ============
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  // capture="environment" entrega o arquivo ao app de câmera nativo do
+  // dispositivo — com zoom, autofoco, flash e captura em alta resolução
+  // controlados pelo próprio SO — em vez de um preview de câmera customizado
+  // via getUserMedia (que não expõe esses controles nativos).
+  const processFile = async (file: File) => {
     try {
       setIsProcessing(true);
       setError(null);
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const img = new Image();
-        img.onload = async () => {
-          const canvas = canvasRef.current;
-          if (!canvas) return;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
 
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-          ctx.drawImage(img, 0, 0);
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
 
-          const blob = await addWatermarkToCanvas(canvas, {
-            latitude: location?.latitude,
-            longitude: location?.longitude,
-            accuracy: location?.accuracy,
-            componentName,
-            anomalyName
-          });
+        const blob = await addWatermarkToCanvas(canvas, {
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          accuracy: location?.accuracy,
+          componentName,
+          anomalyName
+        });
 
-          const reader2 = new FileReader();
-          reader2.onload = () => {
-            setPreviewImage(reader2.result as string);
-          };
-          reader2.readAsDataURL(blob);
+        const reader2 = new FileReader();
+        reader2.onload = () => {
+          setPreviewImage(reader2.result as string);
+          setIsProcessing(false);
         };
-        img.src = e.target?.result as string;
+        reader2.readAsDataURL(blob);
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        setError('Erro ao processar imagem.');
+        setIsProcessing(false);
+      };
+      img.src = dataUrl;
     } catch (err) {
       setError('Erro ao processar imagem.');
-    } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) processFile(file);
   };
 
   const confirmPhoto = () => {
@@ -149,7 +94,6 @@ export function CameraWithWatermark({
   const retakePhoto = () => {
     setPreviewImage(null);
     setError(null);
-    setMode('choose');
   };
 
   return (
@@ -168,43 +112,29 @@ export function CameraWithWatermark({
         {/* Content */}
         <div className="p-4">
           {/* Tela de escolha */}
-          {mode === 'choose' && !previewImage && (
+          {!previewImage && !isProcessing && (
             <div className="w-full h-80 bg-gradient-to-b from-blue-50 to-white rounded-lg flex flex-col items-center justify-center gap-6 p-6">
               <div className="text-center">
                 <Camera className="w-12 h-12 text-blue-600 mx-auto mb-3" />
                 <h4 className="text-lg font-semibold text-gray-800 mb-2">Como capturar a foto?</h4>
               </div>
-              
+
               <div className="flex flex-col gap-2 w-full">
                 <button
-                  onClick={startCamera}
+                  onClick={() => cameraInputRef.current?.click()}
                   className="w-full px-4 py-3 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
                 >
                   📷 Usar Câmera
                 </button>
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => galleryInputRef.current?.click()}
                   className="w-full px-4 py-3 text-sm rounded-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors font-medium"
                 >
                   📁 Usar Galeria
                 </button>
               </div>
-            </div>
-          )}
 
-          {/* Câmera */}
-          {mode === 'camera' && !previewImage && (
-            <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-80 object-cover rounded-lg bg-black"
-              />
-              <canvas ref={canvasRef} className="hidden" />
-              
-              <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
                 <div className="text-xs text-blue-700 space-y-1">
                   <p className="font-medium">Marca d'água será adicionada:</p>
                   <ul className="space-y-0.5">
@@ -215,7 +145,15 @@ export function CameraWithWatermark({
                   </ul>
                 </div>
               </div>
-            </>
+            </div>
+          )}
+
+          {/* Processando */}
+          {isProcessing && !previewImage && (
+            <div className="w-full h-80 flex flex-col items-center justify-center gap-3">
+              <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+              <p className="text-sm text-gray-500">Processando imagem...</p>
+            </div>
           )}
 
           {/* Preview */}
@@ -243,11 +181,22 @@ export function CameraWithWatermark({
             </div>
           )}
 
+          <canvas ref={canvasRef} className="hidden" />
+
+          {/* capture="environment" abre o app de câmera nativo do dispositivo */}
           <input
-            ref={fileInputRef}
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
-            onChange={handleFileUpload}
+            capture="environment"
+            onChange={handleFileSelected}
+            className="hidden"
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelected}
             className="hidden"
           />
         </div>
@@ -260,7 +209,7 @@ export function CameraWithWatermark({
                 onClick={retakePhoto}
                 className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
               >
-                {mode === 'gallery' ? 'Outra' : 'Recapturar'}
+                Recapturar
               </button>
               <button
                 onClick={confirmPhoto}
@@ -268,23 +217,6 @@ export function CameraWithWatermark({
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Confirmar
-              </button>
-            </>
-          ) : mode === 'camera' ? (
-            <>
-              <button
-                onClick={() => { stopCamera(); setMode('choose'); }}
-                className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={capturePhoto}
-                disabled={isProcessing}
-                className="flex-1 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
-              >
-                {isProcessing ? <Loader className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                {isProcessing ? 'Processando...' : 'Capturar'}
               </button>
             </>
           ) : (

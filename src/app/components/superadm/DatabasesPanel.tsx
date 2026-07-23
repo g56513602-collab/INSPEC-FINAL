@@ -16,6 +16,7 @@ import {
   XCircle,
   ArrowRight,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -57,6 +58,7 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [activeBank, setActiveBank] = useState<ActiveBank>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<'backend' | 'local'>('backend');
 
   async function refresh() {
     try {
@@ -74,6 +76,7 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
       setOrders(orders);
       setInspections(inspections);
       setExecutions(executions);
+      setDataSource('backend');
     } catch (error) {
       const store = getStore();
       setUsers(store.users);
@@ -82,8 +85,63 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
       setOrders(store.serviceOrders);
       setInspections(getInspectionRecords());
       setExecutions(getExecutionRecords());
+      setDataSource('local');
     }
     onRefresh?.();
+  }
+
+  function downloadInspectionsCSV() {
+    const csvEscape = (value: unknown) => {
+      const str = value === null || value === undefined ? '' : String(value);
+      return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+
+    const header = [
+      'Estrutura', 'Ordem de Serviço', 'OM', 'Tipo de Inspeção', 'Inspetor',
+      'Supervisor', 'Data', 'Hora', 'Status', 'Coordenadas GPS', 'Observações',
+      'Status de Sincronização',
+    ];
+
+    const rows = orders
+      .filter((o) => o.type === 'inspecao')
+      .map((o) => {
+        const structure = structures.find((s) => s.id === o.structureId);
+        const technician = users.find((u) => u.id === o.technicianId);
+        const supervisor = users.find((u) => u.id === o.supervisorId);
+        const record = inspections.find((i) => i.orderId === o.id);
+        const when = o.completedAt || o.startedAt || o.createdAt;
+        const whenDate = when ? new Date(when) : null;
+        const gps = structure?.lat != null && structure?.lng != null
+          ? `${structure.lat.toFixed(6)}, ${structure.lng.toFixed(6)}`
+          : '';
+
+        return [
+          structure?.name || '',
+          o.id,
+          o.om || '',
+          o.inspectionType || '',
+          technician?.name || '',
+          supervisor?.name || '',
+          whenDate ? whenDate.toLocaleDateString('pt-BR') : '',
+          whenDate ? whenDate.toLocaleTimeString('pt-BR') : '',
+          o.status,
+          gps,
+          record?.observacoesGerais || o.inspectionData?.generalNotes || '',
+          dataSource === 'backend' ? 'Sincronizado' : 'Pendente (dados locais)',
+        ].map(csvEscape).join(',');
+      });
+
+    const BOM = '﻿'; // garante acentuação correta ao abrir no Excel
+    const csv = BOM + [header.map(csvEscape).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inspec360_inspecoes_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => { refresh().catch(() => {}); }, []);
@@ -151,9 +209,14 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
             5 bancos interligados · Dados reais sincronizados em tempo real
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh}>
-          <RefreshCw className="w-3.5 h-3.5 mr-1" />Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={downloadInspectionsCSV}>
+            <Download className="w-3.5 h-3.5 mr-1" />Baixar CSV de Inspeções
+          </Button>
+          <Button variant="outline" size="sm" onClick={refresh}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Relationship Diagram */}

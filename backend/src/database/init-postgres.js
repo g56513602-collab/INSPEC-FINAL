@@ -35,6 +35,8 @@ export async function initializeDatabase() {
       classe TEXT,
       "coordX" REAL NOT NULL,
       "coordY" REAL NOT NULL,
+      lat REAL,
+      lng REAL,
       progressiva REAL NOT NULL,
       deflexao REAL,
       "alturaUtil" REAL,
@@ -54,6 +56,10 @@ export async function initializeDatabase() {
       FOREIGN KEY("createdBy") REFERENCES users(id)
     )
   `);
+
+  // Migração: bancos existentes criados antes da coluna lat/lng não a possuem.
+  await runSQL(`ALTER TABLE structures ADD COLUMN IF NOT EXISTS lat REAL`);
+  await runSQL(`ALTER TABLE structures ADD COLUMN IF NOT EXISTS lng REAL`);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 3. TABELA DE REGRAS DE COMPONENTES
@@ -75,6 +81,8 @@ export async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS "serviceOrders" (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL CHECK(type IN ('inspecao', 'execucao')),
+      om TEXT,
+      "inspectionType" TEXT CHECK("inspectionType" IN ('MI', 'PA')),
       "structureId" TEXT NOT NULL,
       "structureName" TEXT NOT NULL,
       "supervisorId" TEXT NOT NULL,
@@ -94,6 +102,10 @@ export async function initializeDatabase() {
       FOREIGN KEY("technicianId") REFERENCES users(id)
     )
   `);
+
+  // Migração: bancos existentes criados antes das colunas om/inspectionType não as possuem.
+  await runSQL(`ALTER TABLE "serviceOrders" ADD COLUMN IF NOT EXISTS om TEXT`);
+  await runSQL(`ALTER TABLE "serviceOrders" ADD COLUMN IF NOT EXISTS "inspectionType" TEXT`);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 5. TABELA DE INSPEÇÕES

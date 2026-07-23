@@ -86,6 +86,8 @@ function normalizeStructureForInsert(data) {
     classe: data.classe || '',
     coordX: data.coordX,
     coordY: data.coordY,
+    lat: data.lat ?? null,
+    lng: data.lng ?? null,
     progressiva: data.progressiva || 0,
     deflexao: data.deflexao || null,
     alturaUtil: data.alturaUtil || null,
@@ -109,11 +111,12 @@ export async function createStructure(data) {
   const normalized = normalizeStructureForInsert(data);
 
   await runSQL(
-    `INSERT INTO structures (id, name, type, classe, "coordX", "coordY", progressiva, deflexao, 
-     "alturaUtil", "vanFrente", "cotaCentro", lt, voltage, "cadeiaCondutor", "qtdCadeias", 
+    `INSERT INTO structures (id, name, type, classe, "coordX", "coordY", lat, lng, progressiva, deflexao,
+     "alturaUtil", "vanFrente", "cotaCentro", lt, voltage, "cadeiaCondutor", "qtdCadeias",
      "cadeiaParaRaios", "qtdCadeiasPR", "estruturaCritica", status, observation, "createdBy", "createdAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
     [normalized.id, normalized.name, normalized.type, normalized.classe, normalized.coordX, normalized.coordY,
+     normalized.lat, normalized.lng,
      normalized.progressiva, normalized.deflexao, normalized.alturaUtil, normalized.vanFrente, normalized.cotaCentro,
      normalized.lt, normalized.voltage, normalized.cadeiaCondutor, normalized.qtdCadeias,
      normalized.cadeiaParaRaios, normalized.qtdCadeiasPR, normalized.estruturaCritica,
@@ -142,6 +145,8 @@ export async function updateStructure(id, data) {
   if (data.classe !== undefined) { fields.push(`classe = $${paramIndex}`); params.push(data.classe); paramIndex++; }
   if (data.coordX !== undefined) { fields.push(`"coordX" = $${paramIndex}`); params.push(data.coordX); paramIndex++; }
   if (data.coordY !== undefined) { fields.push(`"coordY" = $${paramIndex}`); params.push(data.coordY); paramIndex++; }
+  if (data.lat !== undefined) { fields.push(`lat = $${paramIndex}`); params.push(data.lat); paramIndex++; }
+  if (data.lng !== undefined) { fields.push(`lng = $${paramIndex}`); params.push(data.lng); paramIndex++; }
   if (data.progressiva !== undefined) { fields.push(`progressiva = $${paramIndex}`); params.push(data.progressiva); paramIndex++; }
   if (data.deflexao !== undefined) { fields.push(`deflexao = $${paramIndex}`); params.push(data.deflexao); paramIndex++; }
   if (data.alturaUtil !== undefined) { fields.push(`"alturaUtil" = $${paramIndex}`); params.push(data.alturaUtil); paramIndex++; }
@@ -251,13 +256,13 @@ export async function createServiceOrder(data) {
   const now = new Date().toISOString();
   
   await runSQL(
-    `INSERT INTO "serviceOrders" 
-     (id, type, "structureId", "structureName", "supervisorId", "supervisorName", "technicianId", 
+    `INSERT INTO "serviceOrders"
+     (id, type, om, "inspectionType", "structureId", "structureName", "supervisorId", "supervisorName", "technicianId",
       "technicianName", status, "startDate", priority, description, "createdAt", "updatedAt", deadline)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-    [id, data.type || 'inspecao', data.structureId, data.structureName, data.supervisorId, 
-     data.supervisorName, data.technicianId || null, data.technicianName || '', 
-     data.status || 'pendente', data.startDate || now, data.priority || 'media', 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+    [id, data.type || 'inspecao', data.om || null, data.inspectionType || null, data.structureId, data.structureName, data.supervisorId,
+     data.supervisorName, data.technicianId || null, data.technicianName || '',
+     data.status || 'pendente', data.startDate || now, data.priority || 'media',
      data.description || '', now, now, data.deadline || null]
   );
   
@@ -271,6 +276,8 @@ export async function updateServiceOrder(id, data) {
   const updatedAt = new Date().toISOString();
   
   if (data.status) { fields.push(`status = $${paramIndex}`); params.push(data.status); paramIndex++; }
+  if (data.om !== undefined) { fields.push(`om = $${paramIndex}`); params.push(data.om); paramIndex++; }
+  if (data.inspectionType !== undefined) { fields.push(`"inspectionType" = $${paramIndex}`); params.push(data.inspectionType); paramIndex++; }
   if (data.technicianId !== undefined) { fields.push(`"technicianId" = $${paramIndex}`); params.push(data.technicianId); paramIndex++; }
   if (data.technicianName) { fields.push(`"technicianName" = $${paramIndex}`); params.push(data.technicianName); paramIndex++; }
   if (data.startDate) { fields.push(`"startDate" = $${paramIndex}`); params.push(data.startDate); paramIndex++; }

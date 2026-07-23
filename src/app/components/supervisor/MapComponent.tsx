@@ -1,8 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import type { Structure } from '../../data/types';
+import type { ServiceOrder, Structure } from '../../data/types';
 import { isUtmCoord, utmToLatLng } from '../../../utils/coordinateUtils';
+import {
+  computeStructureStatus,
+  STRUCTURE_STATUS_COLORS as STATUS_COLORS,
+  STRUCTURE_STATUS_LABELS as STATUS_LABELS,
+} from '../../data/structureStatus';
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -10,22 +15,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
-
-const STATUS_COLORS: Record<string, string> = {
-  pendente: '#6b7280',
-  'em-andamento': '#AA8933',
-  concluido: '#16a34a',
-  anomalia: '#dc2626',
-  atrasado: '#ea580c',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pendente: 'Pendente',
-  'em-andamento': 'Em Andamento',
-  concluido: 'Concluído',
-  anomalia: 'Anomalia',
-  atrasado: 'Atrasado',
-};
 
 function makeIcon(color: string) {
   return L.divIcon({
@@ -68,6 +57,7 @@ function makeAddIcon() {
 
 interface MapComponentProps {
   structures: Structure[];
+  orders?: ServiceOrder[];
   onMapClick?: (lat: number, lng: number) => void;
   pendingPin?: { lat: number; lng: number } | null;
   onStructureClick?: (structure: Structure) => void;
@@ -76,6 +66,7 @@ interface MapComponentProps {
 
 export function MapComponent({
   structures,
+  orders = [],
   onMapClick,
   pendingPin,
   onStructureClick,
@@ -88,15 +79,17 @@ export function MapComponent({
   const circleRef = useRef<L.Circle | null>(null);
   const onStructureClickRef = useRef(onStructureClick);
   const structuresRef = useRef(structures);
+  const ordersRef = useRef(orders);
 
   const CENTER: [number, number] = [-9.4419, -36.7673];
 
   // Keep refs in sync without re-running effects
   useEffect(() => { onStructureClickRef.current = onStructureClick; }, [onStructureClick]);
   useEffect(() => { structuresRef.current = structures; }, [structures]);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
 
   // Render markers — can be called from map-init OR structures effect
-  const renderMarkers = useCallback((map: L.Map, structs: Structure[]) => {
+  const renderMarkers = useCallback((map: L.Map, structs: Structure[], ords: ServiceOrder[]) => {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
@@ -123,7 +116,8 @@ export function MapComponent({
 
       validPoints.push([lat, lng]);
 
-      const color = STATUS_COLORS[s.status] || '#6b7280';
+      const displayStatus = computeStructureStatus(s, ords);
+      const color = STATUS_COLORS[displayStatus] || '#6b7280';
       const marker = L.marker([lat, lng], { icon: makeIcon(color) });
 
       const popupContent = `
@@ -133,7 +127,7 @@ export function MapComponent({
           <div style="font-size:11px;color:#555;margin-bottom:2px;">Progressiva: ${progressiva.toLocaleString('pt-BR')} m</div>
           <div style="font-size:11px;color:#555;margin-bottom:6px;">${s.lt || '—'}</div>
           <div style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:12px;background:${color};color:white;">
-            ${STATUS_LABELS[s.status] || s.status || 'Sem status'}
+            ${STATUS_LABELS[displayStatus] || 'Sem status'}
           </div>
         </div>
       `;
@@ -198,7 +192,7 @@ export function MapComponent({
       map.invalidateSize();
       // Render markers that may have arrived before the map was ready
       if (structuresRef.current.length > 0) {
-        renderMarkers(map, structuresRef.current);
+        renderMarkers(map, structuresRef.current, ordersRef.current);
       }
     }, 50);
 
@@ -209,12 +203,12 @@ export function MapComponent({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-render markers whenever structures change
+  // Re-render markers whenever structures or orders change
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    renderMarkers(map, structures);
-  }, [structures, renderMarkers]);
+    renderMarkers(map, structures, orders);
+  }, [structures, orders, renderMarkers]);
 
   // Click handler
   useEffect(() => {
@@ -259,10 +253,10 @@ export function MapComponent({
       <div className="absolute bottom-4 left-4 bg-white rounded-xl shadow-lg p-3 z-[1000]">
         <div className="text-xs font-medium mb-2" style={{ color: '#193A2A' }}>Legenda</div>
         <div className="space-y-1">
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
+          {(Object.keys(STATUS_LABELS) as Array<keyof typeof STATUS_LABELS>).map((key) => (
             <div key={key} className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[key] }} />
-              <span className="text-xs text-gray-600">{label}</span>
+              <span className="text-xs text-gray-600">{STATUS_LABELS[key]}</span>
             </div>
           ))}
         </div>

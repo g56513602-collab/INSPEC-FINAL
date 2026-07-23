@@ -226,8 +226,12 @@ function generateOrderPDF(
       <span>${order.id.toUpperCase()}</span>
     </div>
     <div class="cover-meta-item">
+      <label>OM</label>
+      <span>${order.om || '—'}</span>
+    </div>
+    <div class="cover-meta-item">
       <label>Tipo</label>
-      <span>${order.type === 'inspecao' ? 'Inspeção' : 'Execução de Serviço'}</span>
+      <span>${order.type === 'inspecao' ? 'Inspeção' : 'Execução de Serviço'}${order.inspectionType ? ` (${order.inspectionType === 'MI' ? 'MI – Detalhada' : 'PA – Patrulhamento'})` : ''}</span>
     </div>
     <div class="cover-meta-item">
       <label>Data de Conclusão</label>
@@ -414,7 +418,14 @@ export function CompletedOrdersTab({
       const structName = getStructureName(o.structureId).toLowerCase();
       const techName = getTechnicianName(o.technicianId).toLowerCase();
       const q = search.toLowerCase();
-      if (q && !structName.includes(q) && !techName.includes(q) && !o.id.toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        !structName.includes(q) &&
+        !techName.includes(q) &&
+        !o.id.toLowerCase().includes(q) &&
+        !(o.om || '').toLowerCase().includes(q)
+      )
+        return false;
       if (filterType !== 'all' && o.type !== filterType) return false;
       if (filterTech && o.technicianId !== filterTech) return false;
       if (filterStructure && o.structureId !== filterStructure) return false;
@@ -478,9 +489,15 @@ export function CompletedOrdersTab({
                     <span className="text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
                       ✓ Concluída
                     </span>
+                    {selectedOrder.inspectionType && (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        {selectedOrder.inspectionType === 'MI' ? 'MI – Detalhada' : 'PA – Patrulhamento'}
+                      </span>
+                    )}
                   </div>
                   <div className="text-base text-gray-800 mb-0.5">{getStructureName(selectedOrder.structureId)}</div>
                   <div className="text-xs text-gray-500">{structure?.type} – {structure?.lt}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">OM: {selectedOrder.om || '—'}</div>
                 </div>
               </div>
 
@@ -884,6 +901,11 @@ export function CompletedOrdersTab({
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
                           ✓ Concluído
                         </span>
+                        {order.inspectionType && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            {order.inspectionType}
+                          </span>
+                        )}
                         {anomCount > 0 && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">
                             {anomCount} anomalia{anomCount !== 1 ? 's' : ''}
@@ -894,6 +916,7 @@ export function CompletedOrdersTab({
                         {getStructureName(order.structureId)}
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                        <span>{order.om || '—'}</span>
                         <span className="flex items-center gap-1">
                           <Users className="w-3 h-3" />
                           {getTechnicianName(order.technicianId)}

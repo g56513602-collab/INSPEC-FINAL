@@ -27,7 +27,7 @@ export function PhotoManager({
   const [showCamera, setShowCamera] = useState(false);
   const [showGeoInfo, setShowGeoInfo] = useState(false);
   
-  const { location, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
+  const { location, error: geoError } = useGeolocation();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -76,6 +76,13 @@ export function PhotoManager({
         </div>
       )}
 
+      {!location && !geoError && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs text-gray-500 flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          Obtendo localização em segundo plano...
+        </div>
+      )}
+
       {geoError && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-700">
           {geoError}
@@ -99,19 +106,6 @@ export function PhotoManager({
           style={{ color: '#193A2A' }}
         >
           📁 Galeria
-        </button>
-
-        <button
-          onClick={requestLocation}
-          disabled={geoLoading || !!location}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm text-white"
-          style={{ 
-            backgroundColor: location ? '#10b981' : '#8b5cf6',
-            opacity: geoLoading || !!location ? 0.6 : 1
-          }}
-        >
-          <MapPin className="w-4 h-4" />
-          {geoLoading ? 'GPS...' : location ? 'GPS OK' : 'GPS'}
         </button>
       </div>
 

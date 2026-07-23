@@ -25,8 +25,10 @@ interface ReportPanelProps {
     dateTo: string;
     technicianId: string;
     orderType: 'all' | 'inspecao' | 'execucao';
+    inspectionType: 'all' | 'MI' | 'PA';
     status: 'all' | 'pendente' | 'em-andamento' | 'pausado' | 'concluido' | 'cancelado';
     structureId: string;
+    om: string;
   };
   setReportFilters: React.Dispatch<React.SetStateAction<ReportPanelProps['reportFilters']>>;
   showReport: boolean;
@@ -61,7 +63,8 @@ function generateReportPDF(
       <tr>
         <td>${i + 1}</td>
         <td>${o.id.toUpperCase()}</td>
-        <td>${o.type === 'inspecao' ? 'Inspeção' : 'Execução'}</td>
+        <td>${o.om || '—'}</td>
+        <td>${o.type === 'inspecao' ? 'Inspeção' : 'Execução'}${o.inspectionType ? ` (${o.inspectionType})` : ''}</td>
         <td>${getStructureName(o.structureId)}</td>
         <td>${getTechnicianName(o.technicianId)}</td>
         <td>${o.priority === 'alta' ? 'Alta' : o.priority === 'media' ? 'Média' : 'Baixa'}</td>
@@ -118,7 +121,9 @@ function generateReportPDF(
 
   const filterDesc = [
     filters.orderType !== 'all' ? `Tipo: ${filters.orderType === 'inspecao' ? 'Inspeção' : 'Execução'}` : null,
+    filters.inspectionType !== 'all' ? `Inspeção: ${filters.inspectionType}` : null,
     filters.status !== 'all' ? `Status: ${filters.status}` : null,
+    filters.om ? `OM: ${filters.om}` : null,
     filters.dateFrom ? `De: ${filters.dateFrom}` : null,
     filters.dateTo ? `Até: ${filters.dateTo}` : null,
     filters.technicianId ? `Técnico: ${getTechnicianName(filters.technicianId)}` : null,
@@ -293,6 +298,7 @@ function generateReportPDF(
         <tr>
           <th>#</th>
           <th>ID</th>
+          <th>OM</th>
           <th>Tipo</th>
           <th>Estrutura</th>
           <th>Técnico</th>
@@ -302,7 +308,7 @@ function generateReportPDF(
           <th>Conclusão</th>
         </tr>
       </thead>
-      <tbody>${orderRows || '<tr><td colspan="9" style="text-align:center;color:#9ca3af">Nenhuma ordem encontrada</td></tr>'}</tbody>
+      <tbody>${orderRows || '<tr><td colspan="10" style="text-align:center;color:#9ca3af">Nenhuma ordem encontrada</td></tr>'}</tbody>
     </table>
   </div>
 
@@ -348,9 +354,11 @@ export function ReportPanel({
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       if (reportFilters.orderType !== 'all' && o.type !== reportFilters.orderType) return false;
+      if (reportFilters.inspectionType !== 'all' && o.inspectionType !== reportFilters.inspectionType) return false;
       if (reportFilters.status !== 'all' && o.status !== reportFilters.status) return false;
       if (reportFilters.technicianId && o.technicianId !== reportFilters.technicianId) return false;
       if (reportFilters.structureId && o.structureId !== reportFilters.structureId) return false;
+      if (reportFilters.om && !(o.om || '').toLowerCase().includes(reportFilters.om.toLowerCase())) return false;
       if (reportFilters.dateFrom && o.createdAt < reportFilters.dateFrom) return false;
       if (reportFilters.dateTo && o.createdAt > reportFilters.dateTo + 'T23:59:59Z') return false;
       return true;
@@ -373,9 +381,11 @@ export function ReportPanel({
 
   const hasFilters =
     reportFilters.orderType !== 'all' ||
+    reportFilters.inspectionType !== 'all' ||
     reportFilters.status !== 'all' ||
     reportFilters.technicianId ||
     reportFilters.structureId ||
+    reportFilters.om ||
     reportFilters.dateFrom ||
     reportFilters.dateTo;
 
@@ -424,8 +434,10 @@ export function ReportPanel({
                     dateTo: '',
                     technicianId: '',
                     orderType: 'all',
+                    inspectionType: 'all',
                     status: 'all',
                     structureId: '',
+                    om: '',
                   });
                 }}
                 className="text-xs text-red-400 hover:text-red-600"
@@ -457,6 +469,38 @@ export function ReportPanel({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Inspection type (MI/PA) */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1.5 block">Tipo de Inspeção</label>
+            <div className="flex gap-2">
+              {(['all', 'MI', 'PA'] as const).map((it) => (
+                <button
+                  key={it}
+                  onClick={() => setReportFilters((f) => ({ ...f, inspectionType: it }))}
+                  className="flex-1 text-xs py-1.5 rounded-lg border-2 transition-all"
+                  style={{
+                    borderColor: reportFilters.inspectionType === it ? '#AA8933' : '#e5e7eb',
+                    backgroundColor: reportFilters.inspectionType === it ? '#fff8e1' : '#fff',
+                    color: reportFilters.inspectionType === it ? '#AA8933' : '#6b7280',
+                  }}
+                >
+                  {it === 'all' ? 'Todos' : it}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* OM */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">OM</label>
+            <Input
+              className="text-sm"
+              placeholder="Buscar por OM..."
+              value={reportFilters.om}
+              onChange={(e) => setReportFilters((f) => ({ ...f, om: e.target.value }))}
+            />
           </div>
 
           {/* Status */}
@@ -609,11 +653,18 @@ export function ReportPanel({
                         >
                           {order.type === 'inspecao' ? 'INS' : 'EXE'}
                         </span>
+                        {order.inspectionType && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            {order.inspectionType}
+                          </span>
+                        )}
                         <span className="text-xs text-gray-700 truncate">
                           {getStructureName(order.structureId)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-[10px] text-gray-500 flex-wrap">
+                        <span>{order.om || '—'}</span>
+                        <span>•</span>
                         <span className="flex items-center gap-1">
                           <Users className="w-3 h-3" />
                           {getTechnicianName(order.technicianId)}

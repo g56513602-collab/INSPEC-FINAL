@@ -174,10 +174,14 @@ export type OrderStatus =
   | 'concluido'
   | 'cancelado';
 export type Priority = 'alta' | 'media' | 'baixa';
+// MI = Inspeção Detalhada (Manutenção Inspetiva), PA = Inspeção de Patrulhamento
+export type InspectionType = 'MI' | 'PA';
 
 export interface ServiceOrder {
   id: string;
   type: OrderType;
+  om: string;                    // Ordem de Manutenção — obrigatório, acompanha todo o ciclo de vida
+  inspectionType?: InspectionType; // MI (detalhada) ou PA (patrulhamento) — apenas para type='inspecao'
   structureId: string;           // FK → Structure.id
   technicianId: string;          // FK → SystemUser.id
   supervisorId: string;          // FK → SystemUser.id

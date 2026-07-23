@@ -35,6 +35,14 @@ const LOG_RESET_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
 // Aplicar estado vindo do backend no localStorage e notificar a aplicação
 export function applyBackendState(state: AppData): void {
   try {
+    // O backend REST (/api/structures) não possui colunas lat/lng — apenas
+    // coordX/coordY (UTM). Sem recalcular aqui, estruturas recém-sincronizadas
+    // ficam sem lat/lng e o marcador some do mapa (ex.: logo após uma edição
+    // disparar uma resincronização). fillStructureCoordinates recalcula
+    // lat/lng a partir de coordX/coordY sempre que possível.
+    if (Array.isArray(state.structures)) {
+      state.structures = state.structures.map((s) => fillStructureCoordinates({ ...s }));
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     window.dispatchEvent(new CustomEvent('dataRefresh', { detail: { timestamp: Date.now(), source: 'backend' } }));
     console.log('[Store] Estado do backend aplicado ao armazenamento local');
@@ -209,12 +217,12 @@ function buildInitialInspection(): ComponentInspection[] {
 
 const INITIAL_ORDERS: ServiceOrder[] = [
   {
-    id: 'os1', type: 'inspecao', structureId: 's2', technicianId: 'u1', supervisorId: 'u3',
+    id: 'os1', type: 'inspecao', om: 'OM-2026-00101', inspectionType: 'MI', structureId: 's2', technicianId: 'u1', supervisorId: 'u3',
     priority: 'alta', deadline: '2026-05-10', scheduledDate: '2026-05-07', status: 'pendente',
     createdAt: '2026-04-28T10:00:00Z', photos: [], activityLog: [],
   },
   {
-    id: 'os2', type: 'execucao', structureId: 's3', technicianId: 'u1', supervisorId: 'u3',
+    id: 'os2', type: 'execucao', om: 'OM-2026-00102', structureId: 's3', technicianId: 'u1', supervisorId: 'u3',
     priority: 'alta', deadline: '2026-05-08', scheduledDate: '2026-05-06', status: 'pendente',
     createdAt: '2026-04-27T14:00:00Z',
     component: 'Isoladores', anomaly: 'Marcas de flashover / arco elétrico',
@@ -225,7 +233,7 @@ const INITIAL_ORDERS: ServiceOrder[] = [
     photos: [], activityLog: [],
   },
   {
-    id: 'os3', type: 'inspecao', structureId: 's4', technicianId: 'u2', supervisorId: 'u3',
+    id: 'os3', type: 'inspecao', om: 'OM-2026-00103', inspectionType: 'PA', structureId: 's4', technicianId: 'u2', supervisorId: 'u3',
     priority: 'media', deadline: '2026-04-30', scheduledDate: '2026-04-29', status: 'pausado',
     createdAt: '2026-04-25T09:00:00Z', startedAt: '2026-04-29T07:30:00Z', pausedAt: '2026-04-29T12:00:00Z',
     photos: [],
@@ -242,7 +250,7 @@ const INITIAL_ORDERS: ServiceOrder[] = [
     },
   },
   {
-    id: 'os4', type: 'execucao', structureId: 's7', technicianId: 'u2', supervisorId: 'u3',
+    id: 'os4', type: 'execucao', om: 'OM-2026-00104', structureId: 's7', technicianId: 'u2', supervisorId: 'u3',
     priority: 'baixa', deadline: '2026-05-15', scheduledDate: '2026-05-10', status: 'pendente',
     createdAt: '2026-04-29T11:00:00Z',
     component: 'Faixa de Servidão', anomaly: 'Vegetação com altura inadequada na faixa',
@@ -253,7 +261,7 @@ const INITIAL_ORDERS: ServiceOrder[] = [
     photos: [], activityLog: [],
   },
   {
-    id: 'os5', type: 'inspecao', structureId: 's5', technicianId: 'u1', supervisorId: 'u3',
+    id: 'os5', type: 'inspecao', om: 'OM-2026-00105', inspectionType: 'MI', structureId: 's5', technicianId: 'u1', supervisorId: 'u3',
     priority: 'media', deadline: '2026-05-12', scheduledDate: '2026-05-09', status: 'pendente',
     createdAt: '2026-04-30T08:00:00Z', photos: [], activityLog: [],
   },
