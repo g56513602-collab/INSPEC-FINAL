@@ -39,7 +39,10 @@ function mergeCollection(existingArr, incomingArr, collectionName) {
   const missingFromIncoming = [...existingIds].filter((id) => !incomingIds.has(id));
 
   const dropRatio = existingIds.size > 0 ? missingFromIncoming.length / existingIds.size : 0;
-  const looksLikeStaleOverwrite = existingIds.size >= 3 && dropRatio > 0.3;
+  // missingFromIncoming.length > 1 garante que uma exclusão legítima de UM
+  // único registro nunca é bloqueada, mesmo em coleções pequenas (onde 1
+  // item já pode representar mais de 30% do total).
+  const looksLikeStaleOverwrite = existingIds.size >= 3 && missingFromIncoming.length > 1 && dropRatio > 0.3;
 
   if (!looksLikeStaleOverwrite) {
     // Payload confiável — pode incluir a adição/edição normal de registros,
