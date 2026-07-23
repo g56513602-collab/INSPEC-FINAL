@@ -27,9 +27,18 @@ router.get('/', async (req, res) => {
 // POST /api/state — save full app state
 router.post('/', async (req, res) => {
   try {
+    // Nunca persistir um estado nulo/vazio — isso apagaria todo o banco
+    // compartilhado (users, structures, service orders, inspections, etc.)
+    // que fica armazenado nesta única linha (key='app_data').
+    if (req.body.state === null || req.body.state === undefined) {
+      return res.status(400).json({
+        error: 'state ausente ou nulo — operação rejeitada para evitar perda de dados',
+      });
+    }
+
     const stateJson = JSON.stringify(req.body.state);
     const now = new Date().toISOString();
-    
+
     try {
       const existing = await getQuery('SELECT key FROM state WHERE key = $1', ['app_data']);
       if (existing.length > 0) {

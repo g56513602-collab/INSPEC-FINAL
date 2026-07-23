@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getStore, saveStore, loadFromBackend } from '@/app/data/store';
 
 /**
  * Hook para disparar re-render quando dados são sincronizados
@@ -21,36 +22,24 @@ export function useDataSync() {
 }
 
 /**
- * Força sincronização imediata com backend
- * Será silenciosa se backend não responder (localStorage é fallback)
+ * Força sincronização imediata com backend: envia os dados locais atuais
+ * (nunca um estado vazio/nulo, que apagaria o banco compartilhado) e em
+ * seguida busca o estado mais recente confirmado pelo backend.
+ * Será silenciosa se backend não responder (localStorage é fallback).
  */
 export async function forceSync(): Promise<boolean> {
   try {
     console.log('[ForceSync] Sincronizando com backend...');
-    
-    const response = await fetch('/api/state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        state: null, // Dummy state - backend usará apenas para confirmação
-        timestamp: Date.now()
-      }),
-      signal: AbortSignal.timeout(10000) // Timeout de 10s
-    });
-    
-    if (response.ok) {
-      console.log('[ForceSync] ✅ Sincronização concluída');
-      // Disparar evento de sincronização
-      window.dispatchEvent(new CustomEvent('dataRefresh', { 
-        detail: { timestamp: Date.now(), source: 'forceSync' } 
-      }));
-      return true;
-    }
-    
-    // Se backend indisponível, ainda é sucesso (localStorage é fallback)
-    console.warn('[ForceSync] ⚠️ Backend indisponível, usando localStorage');
-    window.dispatchEvent(new CustomEvent('dataRefresh', { 
-      detail: { timestamp: Date.now(), source: 'forceSync', offline: true } 
+
+    // Envia as alterações locais pendentes (best-effort; saveStore já trata falhas)
+    saveStore(getStore());
+
+    // Busca o estado mais recente confirmado pelo backend
+    await loadFromBackend();
+
+    console.log('[ForceSync] ✅ Sincronização concluída');
+    window.dispatchEvent(new CustomEvent('dataRefresh', {
+      detail: { timestamp: Date.now(), source: 'forceSync' }
     }));
     return true;
   } catch (error) {

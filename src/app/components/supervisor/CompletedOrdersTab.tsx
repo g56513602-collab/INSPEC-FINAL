@@ -432,6 +432,7 @@ export function CompletedOrdersTab({
     const okCount = selectedOrder.inspectionData?.components.filter((c) => c.status === 'ok').length ?? 0;
     const anomCount = selectedOrder.inspectionData?.components.filter((c) => c.status === 'anomalia').length ?? 0;
     const naCount = selectedOrder.inspectionData?.components.filter((c) => c.status === 'nao-aplicavel').length ?? 0;
+    const selectedPhotos = collectOrderPhotos(selectedOrder);
 
     return (
       <div className="flex flex-col min-h-screen bg-gray-50">
