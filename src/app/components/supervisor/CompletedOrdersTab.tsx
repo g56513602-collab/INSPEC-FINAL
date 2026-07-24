@@ -20,6 +20,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import type { ServiceOrder, Structure } from '../../data/types';
 import { collectOrderPhotos } from '../../data/orderPhotos';
+import { PhotoLightbox } from '../../../components/PhotoLightbox';
 import newLogo from '../../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
 
 interface CompletedOrdersTabProps {
@@ -403,6 +404,7 @@ export function CompletedOrdersTab({
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+  const [viewingPhotoIndex, setViewingPhotoIndex] = useState<number | null>(null);
 
   const completedOrders = useMemo(
     () => orders.filter((o) => o.status === 'concluido'),
@@ -685,7 +687,8 @@ export function CompletedOrdersTab({
                     <img
                       src={p}
                       alt={`Foto ${i + 1}`}
-                      className="w-full h-28 object-cover rounded-lg border border-gray-100"
+                      className="w-full h-28 object-cover rounded-lg border border-gray-100 cursor-pointer"
+                      onClick={() => setViewingPhotoIndex(i)}
                     />
                     <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded">
                       {i + 1}/{selectedPhotos.length}
@@ -694,6 +697,15 @@ export function CompletedOrdersTab({
                 ))}
               </div>
             </Card>
+          )}
+
+          {viewingPhotoIndex !== null && (
+            <PhotoLightbox
+              photos={selectedPhotos}
+              initialIndex={viewingPhotoIndex}
+              onClose={() => setViewingPhotoIndex(null)}
+              fileNamePrefix={selectedOrder.id}
+            />
           )}
 
           {/* Activity log */}

@@ -802,6 +802,32 @@ export function addPhoto(orderId: string, photoBase64: string, componentId?: str
   }
 }
 
+/**
+ * Substitui a lista completa de fotos gerais de uma ordem (usado pelo fluxo
+ * de execução, onde o PhotoManager entrega o array inteiro após cada
+ * captura/remoção, em vez de uma foto por vez como em addPhoto()).
+ *
+ * Sem isso, o ExecutionFlow mantinha as fotos capturadas apenas em estado
+ * local do componente (useState) e nunca as gravava em order.photos — as
+ * fotos apareciam durante a execução e simplesmente desapareciam ao
+ * concluir, nunca chegando a nenhum relatório.
+ */
+export function updateOrderPhotos(orderId: string, photos: string[]): void {
+  const store = getStore();
+  const order = store.serviceOrders.find((o) => o.id === orderId);
+  if (!order) return;
+  const snapshot = JSON.parse(JSON.stringify(store));
+  order.photos = photos;
+  saveStore(store);
+
+  if (REQUIRE_BACKEND) {
+    backendStore.serviceOrderStore.update(order.id, order as any).then(() => dispatchBackendSuccess('updateOrderPhotos')).catch((err) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)); } catch {}
+      dispatchBackendFailure(err, 'updateOrderPhotos');
+    });
+  }
+}
+
 // ─── Supervisor helpers ──────────────────────────────────────────────────────
 
 function fillStructureCoordinates(structure: Structure): Structure {

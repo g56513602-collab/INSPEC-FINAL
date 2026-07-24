@@ -1,14 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   ChevronLeft,
-  Camera,
   CheckCircle2,
   MapPin,
   AlertTriangle,
   Info,
   Flag,
   Clock,
-  Trash2,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
@@ -18,7 +16,7 @@ import {
   getStructureById,
   completeOrder,
   pauseOrder,
-  addPhoto,
+  updateOrderPhotos,
 } from '../../data/store';
 import type { User } from '../../App';
 
@@ -33,8 +31,6 @@ interface ExecutionFlowProps {
 export function ExecutionFlow({ order, user, onBack, onComplete, onPause }: ExecutionFlowProps) {
   const structure = getStructureById(order.structureId);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [photos, setPhotos] = useState<string[]>(order.photos || []);
   const [techniciansNotes, setTechniciansNotes] = useState('');
   const [showPauseModal, setShowPauseModal] = useState(false);
@@ -45,21 +41,9 @@ export function ExecutionFlow({ order, user, onBack, onComplete, onPause }: Exec
     ? new Date(order.startedAt).toLocaleString('pt-BR')
     : new Date().toLocaleString('pt-BR');
 
-  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = ev.target?.result as string;
-      setPhotos((prev) => [...prev, base64]);
-      addPhoto(order.id, base64);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  }
-
-  function removePhoto(idx: number) {
-    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  function handlePhotosChange(newPhotos: string[]) {
+    setPhotos(newPhotos);
+    updateOrderPhotos(order.id, newPhotos);
   }
 
   function handlePause() {
@@ -155,15 +139,6 @@ export function ExecutionFlow({ order, user, onBack, onComplete, onPause }: Exec
   // ── Main execution screen ───────────────────────────────────────────────────
   return (
     <div className="flex flex-col min-h-screen" style={{ backgroundColor: '#f5f5f5' }}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handlePhotoUpload}
-      />
-
       {/* Header */}
       <div className="sticky top-0 z-10 shadow-sm" style={{ backgroundColor: '#193A2A' }}>
         <div className="flex items-center gap-3 px-4 py-3">
@@ -308,7 +283,7 @@ export function ExecutionFlow({ order, user, onBack, onComplete, onPause }: Exec
           </h3>
           <PhotoManager
             photos={photos}
-            onPhotosChange={setPhotos}
+            onPhotosChange={handlePhotosChange}
             inspectionId={order.id}
           />
         </div>

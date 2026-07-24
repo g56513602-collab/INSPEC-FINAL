@@ -3,6 +3,7 @@ import { Camera, MapPin, Trash2 } from 'lucide-react';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { addWatermarkToImage, addWatermarkToCanvas } from '@/utils/watermarkImage';
 import { CameraWithWatermark } from './CameraWithWatermark';
+import { PhotoLightbox } from './PhotoLightbox';
 
 interface PhotoManagerProps {
   componentId?: string;
@@ -26,6 +27,7 @@ export function PhotoManager({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showGeoInfo, setShowGeoInfo] = useState(false);
+  const [viewingIndex, setViewingIndex] = useState<number | null>(null);
   
   const { location, error: geoError } = useGeolocation();
 
@@ -122,7 +124,8 @@ export function PhotoManager({
                 <img
                   src={photo}
                   alt={`Foto ${i + 1}`}
-                  className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                  className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
+                  onClick={() => setViewingIndex(i)}
                 />
                 <button
                   onClick={() => removePhoto(i)}
@@ -158,6 +161,15 @@ export function PhotoManager({
             setShowCamera(false);
           }}
           onClose={() => setShowCamera(false)}
+        />
+      )}
+
+      {viewingIndex !== null && (
+        <PhotoLightbox
+          photos={photos}
+          initialIndex={viewingIndex}
+          onClose={() => setViewingIndex(null)}
+          fileNamePrefix={componentName || 'foto'}
         />
       )}
     </div>

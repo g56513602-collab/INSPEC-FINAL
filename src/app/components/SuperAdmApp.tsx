@@ -23,6 +23,7 @@ import {
   Database,
   Cpu,
   HardDrive,
+  Camera,
 } from 'lucide-react';
 import { isUtmCoord, utmToLatLng } from '@/utils/coordinateUtils';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
@@ -57,6 +58,8 @@ import type { SystemUser, Structure, StructureType, StructureStatus, SeverityOpt
 import type { ComponentRule } from '../data/types';
 import type { User } from '../App';
 import { DatabasesPanel } from './superadm/DatabasesPanel';
+import { OrdersManagementPanel } from './superadm/OrdersManagementPanel';
+import { PhotoGalleryPanel } from './PhotoGalleryPanel';
 import { BackupPanel } from './BackupPanel';
 import { useAutoBackup } from '@/hooks/useAutoBackup';
 
@@ -272,6 +275,13 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  }
+
+  function getStructureName(id: string) {
+    return structures.find((s) => s.id === id)?.name || '—';
+  }
+  function getTechnicianName(id: string) {
+    return users.find((u) => u.id === id)?.name || '—';
   }
 
   if (initializing) {
@@ -600,6 +610,8 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
             <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Usuários</TabsTrigger>
             <TabsTrigger value="structures"><Building2 className="w-4 h-4 mr-2" />Estruturas</TabsTrigger>
             <TabsTrigger value="checklist"><ListChecks className="w-4 h-4 mr-2" />Regras de Inspeção</TabsTrigger>
+            <TabsTrigger value="orders"><ClipboardList className="w-4 h-4 mr-2" />Ordens de Serviço</TabsTrigger>
+            <TabsTrigger value="photos"><Camera className="w-4 h-4 mr-2" />Fotos</TabsTrigger>
             <TabsTrigger value="databases"><Database className="w-4 h-4 mr-2" />Bases de Dados</TabsTrigger>
             <TabsTrigger value="activity"><Activity className="w-4 h-4 mr-2" />Atividades</TabsTrigger>
             <TabsTrigger value="logs"><Terminal className="w-4 h-4 mr-2" />Logs</TabsTrigger>
@@ -899,6 +911,26 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
                 </div>
               </div>
             </Card>
+          </TabsContent>
+
+          {/* ── Ordens de Serviço ─────────────────────────────────────────── */}
+          <TabsContent value="orders" className="mt-0">
+            <OrdersManagementPanel
+              orders={serviceOrders}
+              structures={structures}
+              users={users}
+              onRefresh={refresh}
+            />
+          </TabsContent>
+
+          {/* ── Fotos ─────────────────────────────────────────────────────── */}
+          <TabsContent value="photos" className="mt-0">
+            <PhotoGalleryPanel
+              orders={serviceOrders}
+              structures={structures}
+              getStructureName={getStructureName}
+              getTechnicianName={getTechnicianName}
+            />
           </TabsContent>
 
           {/* ── Databases ─────────────────────────────────────────────────── */}

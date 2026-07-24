@@ -16,6 +16,7 @@ import {
   Building2,
   FileText,
   Filter,
+  Camera,
 } from 'lucide-react';
 import { latLngToUtm } from '@/utils/coordinateUtils';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
@@ -34,6 +35,7 @@ import { INSPECTION_TYPES } from '../data/types';
 import type { User } from '../App';
 import { CompletedOrdersTab } from './supervisor/CompletedOrdersTab';
 import { ReportPanel } from './supervisor/ReportPanel';
+import { PhotoGalleryPanel } from './PhotoGalleryPanel';
 import { useDataSync, forceSync } from '@/hooks/useDataSync';
 import { useOnlineStatus } from '@/context/OfflineContext';
 import {
@@ -51,7 +53,7 @@ interface SupervisorAppProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'mapa' | 'ordens' | 'estruturas' | 'concluidas' | 'relatorio';
+type Tab = 'dashboard' | 'mapa' | 'ordens' | 'estruturas' | 'concluidas' | 'relatorio' | 'fotos';
 
 const STRUCTURE_TYPES: StructureType[] = [
   'Suspensão',
@@ -553,6 +555,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
               { id: 'estruturas', label: 'Estruturas', icon: Building2 },
               { id: 'concluidas', label: 'Concluídas', icon: CheckCircle2 },
               { id: 'relatorio', label: 'Relatório', icon: FileText },
+              { id: 'fotos', label: 'Fotos', icon: Camera },
             ] as const
           ).map((tab) => {
             const Icon = tab.icon;
@@ -1179,6 +1182,18 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
             getStructureName={getStructureName}
             getTechnicianName={getTechnicianName}
           />
+        )}
+
+        {/* ── Fotos ──────────────────────────────────────────────────────── */}
+        {activeTab === 'fotos' && (
+          <div className="p-4 max-w-3xl mx-auto">
+            <PhotoGalleryPanel
+              orders={orders}
+              structures={structures}
+              getStructureName={getStructureName}
+              getTechnicianName={getTechnicianName}
+            />
+          </div>
         )}
       </div>
 
