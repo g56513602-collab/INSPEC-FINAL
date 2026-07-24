@@ -9,6 +9,7 @@ import {
   Clock,
   Users,
   Building2,
+  Camera,
   X,
 } from 'lucide-react';
 import { Card } from '../ui/card';
@@ -16,6 +17,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import type { ServiceOrder, Structure, InspectionType } from '../../data/types';
 import { INSPECTION_TYPES } from '../../data/types';
+import { collectOrderPhotos } from '../../data/orderPhotos';
 
 interface ReportPanelProps {
   orders: ServiceOrder[];
@@ -94,9 +96,40 @@ function generateReportPDF(
           }
         </td>
         <td>${o.completedAt ? new Date(o.completedAt).toLocaleDateString('pt-BR') : '—'}</td>
+        <td>${collectOrderPhotos(o).length}</td>
       </tr>`
     )
     .join('');
+
+  // Registros fotográficos de todas as ordens filtradas que têm foto —
+  // sem isso, o relatório analítico não mostrava nenhuma imagem, mesmo
+  // quando as ordens tinham fotos registradas (só o relatório de uma
+  // ordem individual, em "Ordens Concluídas", mostrava fotos).
+  const photoSections = filteredOrders
+    .map((o) => ({ order: o, photos: collectOrderPhotos(o) }))
+    .filter(({ photos }) => photos.length > 0)
+    .map(
+      ({ order, photos }) => `
+      <div class="photo-order-block">
+        <div class="photo-order-title">
+          ${order.id.toUpperCase()} — ${getStructureName(order.structureId)}
+          <span class="photo-order-count">${photos.length} foto${photos.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="photos-grid">
+          ${photos
+            .map(
+              (p, i) => `<div class="photo-item">
+            <img src="${p}" alt="Foto ${i + 1}" onerror="this.style.display='none'" />
+            <div class="photo-label">Foto ${i + 1}</div>
+          </div>`
+            )
+            .join('')}
+        </div>
+      </div>`
+    )
+    .join('');
+  const totalPhotos = filteredOrders.reduce((sum, o) => sum + collectOrderPhotos(o).length, 0);
+  const ordersWithPhotosCount = filteredOrders.filter((o) => collectOrderPhotos(o).length > 0).length;
 
   // Group by technician
   const byTech: Record<string, { name: string; total: number; concluidos: number }> = {};
@@ -199,6 +232,21 @@ function generateReportPDF(
 
     .tech-table thead tr { background: #2d5a3d; }
 
+    .photo-order-block { margin-bottom: 20px; }
+    .photo-order-title {
+      font-size: 9.5pt; color: #193A2A; margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .photo-order-count {
+      font-size: 8pt; color: #6b7280; background: #f3f4f6; padding: 2px 10px; border-radius: 12px;
+    }
+    .photos-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .photo-item { text-align: center; }
+    .photo-item img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
+    .photo-label { font-size: 7.5pt; color: #6b7280; margin-top: 3px; }
+
     .footer {
       margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb;
       display: flex; justify-content: space-between;
@@ -208,6 +256,7 @@ function generateReportPDF(
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .section { page-break-inside: avoid; }
+      .photo-order-block { page-break-inside: avoid; }
     }
   </style>
 </head>
@@ -307,11 +356,21 @@ function generateReportPDF(
           <th>Prazo</th>
           <th>Status</th>
           <th>Conclusão</th>
+          <th>Fotos</th>
         </tr>
       </thead>
-      <tbody>${orderRows || '<tr><td colspan="10" style="text-align:center;color:#9ca3af">Nenhuma ordem encontrada</td></tr>'}</tbody>
+      <tbody>${orderRows || '<tr><td colspan="11" style="text-align:center;color:#9ca3af">Nenhuma ordem encontrada</td></tr>'}</tbody>
     </table>
   </div>
+
+  ${
+    totalPhotos > 0
+      ? `<div class="section">
+    <div class="section-title">📷 Registros Fotográficos (${totalPhotos} foto${totalPhotos !== 1 ? 's' : ''} em ${ordersWithPhotosCount} ordem${ordersWithPhotosCount !== 1 ? 's' : ''})</div>
+    ${photoSections}
+  </div>`
+      : ''
+  }
 
   <div class="footer">
     <span>INSPEC360 · Mineração Vale Verde · LT 230kV</span>
@@ -639,6 +698,7 @@ export function ReportPanel({
               const isLate = order.status !== 'concluido' && new Date(order.deadline) < new Date();
               const anomCount =
                 order.inspectionData?.components.filter((c) => c.status === 'anomalia').length ?? 0;
+              const photoCount = collectOrderPhotos(order).length;
               return (
                 <Card key={order.id} className="p-3 shadow-sm">
                   <div className="flex items-start gap-2">
@@ -676,6 +736,15 @@ export function ReportPanel({
                           <>
                             <span>•</span>
                             <span className="text-red-500">{anomCount} anomalia{anomCount !== 1 ? 's' : ''}</span>
+                          </>
+                        )}
+                        {photoCount > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Camera className="w-3 h-3" />
+                              {photoCount} foto{photoCount !== 1 ? 's' : ''}
+                            </span>
                           </>
                         )}
                       </div>

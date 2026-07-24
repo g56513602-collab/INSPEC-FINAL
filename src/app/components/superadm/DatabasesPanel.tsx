@@ -26,6 +26,7 @@ import {
   getExecutionRecords,
 } from '../../data/store';
 import { backendStore } from '../../data/backendStore';
+import { collectOrderPhotos } from '../../data/orderPhotos';
 import type {
   SystemUser,
   Structure,
@@ -99,7 +100,7 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
     const header = [
       'Estrutura', 'Ordem de Serviço', 'OM', 'Tipo de Inspeção', 'Inspetor',
       'Supervisor', 'Data', 'Hora', 'Status', 'Coordenadas GPS', 'Observações',
-      'Status de Sincronização',
+      'Fotos', 'Status de Sincronização',
     ];
 
     const rows = orders
@@ -127,6 +128,7 @@ export function DatabasesPanel({ onRefresh }: DatabasesPanelProps) {
           o.status,
           gps,
           record?.observacoesGerais || o.inspectionData?.generalNotes || '',
+          collectOrderPhotos(o).length,
           dataSource === 'backend' ? 'Sincronizado' : 'Pendente (dados locais)',
         ].map(csvEscape).join(',');
       });

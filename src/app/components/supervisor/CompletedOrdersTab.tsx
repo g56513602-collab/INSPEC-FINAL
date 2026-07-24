@@ -19,6 +19,7 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import type { ServiceOrder, Structure } from '../../data/types';
+import { collectOrderPhotos } from '../../data/orderPhotos';
 import newLogo from '../../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
 
 interface CompletedOrdersTabProps {
@@ -27,11 +28,6 @@ interface CompletedOrdersTabProps {
   technicians: { id: string; name: string }[];
   getStructureName: (id: string) => string;
   getTechnicianName: (id: string) => string;
-}
-
-function collectOrderPhotos(order: ServiceOrder) {
-  const componentPhotos = order.inspectionData?.components.flatMap((c) => c.photos || []) || [];
-  return Array.from(new Set([...(order.photos || []), ...componentPhotos]));
 }
 
 function generateOrderPDF(
