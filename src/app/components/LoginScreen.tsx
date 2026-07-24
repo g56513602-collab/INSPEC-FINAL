@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
+import producedByLogo from '../../imports/produced-by-bnmc-vale-verde.png';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -153,13 +154,22 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         <p className="text-center text-white/30 text-[10px] mt-4">
           © 2026 INSPEC360 · Mineração Vale Verde · v{versionInfo?.version || '2.2.0'}
         </p>
-        
+
         {/* Last update info */}
         {versionInfo && (
           <p className="text-center text-white/40 text-[9px] mt-1.5">
             ⏱️ Última atualização: {formatUpdateTime(versionInfo.buildDate)}
           </p>
         )}
+
+        {/* Produced by — empresa controladora do grupo */}
+        <div className="flex justify-center mt-4">
+          <img
+            src={producedByLogo}
+            alt="Produced by BNMC · Mineração Vale Verde"
+            className="w-52 max-w-full h-auto rounded-lg opacity-90"
+          />
+        </div>
       </div>
     </div>
   );
