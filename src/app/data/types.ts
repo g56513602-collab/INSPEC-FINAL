@@ -43,7 +43,7 @@ export interface Structure {
   name: string;                  // Nome da estrutura (ex: Torre 001)
   type: StructureType;           // Tipo de estrutura
   classe?: string;               // Classe da estrutura (ex: MT2, AT3)
-  // Coordenadas UTM (zona 25S, datum WGS84)
+  // Coordenadas UTM (zona 23S, datum WGS84)
   coordX: number;                // Coordenada X (Easting)
   coordY: number;                // Coordenada Y (Northing)
   /** @deprecated use coordX */

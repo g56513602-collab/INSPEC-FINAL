@@ -19,6 +19,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { latLngToUtm } from '@/utils/coordinateUtils';
+import { parseDecimal } from '@/utils/numberFormat';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -194,7 +195,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
       id: generateId(),
       name: structureForm.name,
       type: structureForm.type,
-      progressiva: parseFloat(structureForm.progressiva) || 0,
+      progressiva: parseDecimal(structureForm.progressiva),
       coordX: utm.x,
       coordY: utm.y,
       lat: pendingPin.lat,
@@ -873,7 +874,7 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                     📍 Posição geográfica: {pendingPin.lat.toFixed(5)}°, {pendingPin.lng.toFixed(5)}°
                   </div>
                   <div className="p-2 bg-gray-50 rounded-lg text-xs text-gray-700">
-                    📏 UTM 25S: X {latLngToUtm(pendingPin.lat, pendingPin.lng).x.toFixed(2)}, Y {latLngToUtm(pendingPin.lat, pendingPin.lng).y.toFixed(2)}
+                    📏 UTM 23S: X {latLngToUtm(pendingPin.lat, pendingPin.lng).x.toFixed(2)}, Y {latLngToUtm(pendingPin.lat, pendingPin.lng).y.toFixed(2)}
                   </div>
 
                   <div className="space-y-3">
@@ -909,7 +910,8 @@ export function SupervisorApp({ user, onLogout }: SupervisorAppProps) {
                     <div>
                       <label className="text-xs text-gray-600 mb-1 block">Progressiva (m)</label>
                       <Input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ex: 12500"
                         value={structureForm.progressiva}
                         onChange={(e) => setStructureForm((f) => ({ ...f, progressiva: e.target.value }))}

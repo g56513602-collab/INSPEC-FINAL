@@ -7,7 +7,7 @@ const E_P2 = E2 / (1 - E2);
 const E4 = E2 * E2;
 const E6 = E4 * E2;
 
-const UTM_ZONE_25_S = 25;
+const UTM_ZONE_23_S = 23;
 const UTM_HEM_SOUTH = true;
 
 function toRad(deg: number): number {
@@ -25,7 +25,7 @@ function utmCentralMeridian(zone: number): number {
 export function utmToLatLng(
   easting: number,
   northing: number,
-  zone: number = UTM_ZONE_25_S,
+  zone: number = UTM_ZONE_23_S,
   southernHemisphere: boolean = UTM_HEM_SOUTH
 ): { lat: number; lng: number } {
   const x = easting - 500000.0;
@@ -89,7 +89,7 @@ export function utmToLatLng(
 export function latLngToUtm(
   lat: number,
   lng: number,
-  zone: number = UTM_ZONE_25_S,
+  zone: number = UTM_ZONE_23_S,
   southernHemisphere: boolean = UTM_HEM_SOUTH
 ): { x: number; y: number; zone: number; hemisphere: 'N' | 'S' } {
   const latRad = toRad(lat);
@@ -145,7 +145,7 @@ export function isUtmCoord(x: number, y: number): boolean {
 }
 
 export function getUtmZone(): number {
-  return UTM_ZONE_25_S;
+  return UTM_ZONE_23_S;
 }
 
 export function isSouthernHemisphere(): boolean {

@@ -26,6 +26,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { isUtmCoord, utmToLatLng } from '@/utils/coordinateUtils';
+import { parseDecimal } from '@/utils/numberFormat';
 import newLogo from '../../imports/Firefly_Gemini_Flash_recrie_a_imagem_com_qualidade_melhor__331567-1.png';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -121,13 +122,17 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     name: '',
     type: 'Suspensão' as StructureType,
     classe: '',
-    coordX: 0,
-    coordY: 0,
-    progressiva: 0,
-    deflexao: 0,
-    alturaUtil: 0,
-    vanFrente: 0,
-    cotaCentro: 0,
+    // Guardados como texto bruto (não número) enquanto o usuário digita —
+    // ver comentário em parseDecimal(): um campo controlado que reformata
+    // o valor a cada tecla apaga a vírgula/ponto decimal assim que digitada,
+    // impedindo digitar números com casas decimais no formato brasileiro.
+    coordX: '',
+    coordY: '',
+    progressiva: '',
+    deflexao: '',
+    alturaUtil: '',
+    vanFrente: '',
+    cotaCentro: '',
     lt: '',
     voltage: '230kV',
     cadeiaCondutor: '',
@@ -360,8 +365,8 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     setEditingStructure(null);
     setStructureForm({
       name: '', type: 'Suspensão', classe: '',
-      coordX: 0, coordY: 0,
-      progressiva: 0, deflexao: 0, alturaUtil: 0, vanFrente: 0, cotaCentro: 0,
+      coordX: '', coordY: '',
+      progressiva: '', deflexao: '', alturaUtil: '', vanFrente: '', cotaCentro: '',
       lt: '', voltage: '230kV',
       cadeiaCondutor: '', qtdCadeias: 3, cadeiaParaRaios: '', qtdCadeiasPR: 1,
       status: 'pendente', estruturaCritica: false, observation: '', notes: '',
@@ -373,9 +378,11 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
     setEditingStructure(s);
     setStructureForm({
       name: s.name, type: s.type, classe: s.classe || '',
-      coordX: s.coordX ?? s.lng ?? 0, coordY: s.coordY ?? s.lat ?? 0,
-      progressiva: s.progressiva, deflexao: s.deflexao ?? 0,
-      alturaUtil: s.alturaUtil ?? 0, vanFrente: s.vanFrente ?? 0, cotaCentro: s.cotaCentro ?? 0,
+      coordX: String(s.coordX ?? s.lng ?? ''), coordY: String(s.coordY ?? s.lat ?? ''),
+      progressiva: String(s.progressiva ?? ''), deflexao: s.deflexao != null ? String(s.deflexao) : '',
+      alturaUtil: s.alturaUtil != null ? String(s.alturaUtil) : '',
+      vanFrente: s.vanFrente != null ? String(s.vanFrente) : '',
+      cotaCentro: s.cotaCentro != null ? String(s.cotaCentro) : '',
       lt: s.lt, voltage: s.voltage,
       cadeiaCondutor: s.cadeiaCondutor || '', qtdCadeias: s.qtdCadeias ?? 3,
       cadeiaParaRaios: s.cadeiaParaRaios || '', qtdCadeiasPR: s.qtdCadeiasPR ?? 1,
@@ -391,28 +398,33 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
       return;
     }
 
-    if (structureForm.coordX === 0 && structureForm.coordY === 0) {
+    // Os campos numéricos são digitados como texto (aceitando vírgula
+    // decimal); convertidos para número só aqui, na fronteira de envio.
+    const coordX = parseDecimal(structureForm.coordX);
+    const coordY = parseDecimal(structureForm.coordY);
+
+    if (coordX === 0 && coordY === 0) {
       showToast('Informe coordenadas UTM válidas antes de salvar.');
       return;
     }
 
-    const geo = isUtmCoord(structureForm.coordX, structureForm.coordY)
-      ? utmToLatLng(structureForm.coordX, structureForm.coordY)
-      : { lat: structureForm.coordY, lng: structureForm.coordX };
+    const geo = isUtmCoord(coordX, coordY)
+      ? utmToLatLng(coordX, coordY)
+      : { lat: coordY, lng: coordX };
     const structureData: Structure = {
       id: editingStructure?.id || generateId(),
       name: structureForm.name,
       type: structureForm.type,
       classe: structureForm.classe,
-      coordX: structureForm.coordX,
-      coordY: structureForm.coordY,
+      coordX,
+      coordY,
       lat: geo.lat,
       lng: geo.lng,
-      progressiva: structureForm.progressiva,
-      deflexao: structureForm.deflexao,
-      alturaUtil: structureForm.alturaUtil,
-      vanFrente: structureForm.vanFrente,
-      cotaCentro: structureForm.cotaCentro,
+      progressiva: parseDecimal(structureForm.progressiva),
+      deflexao: parseDecimal(structureForm.deflexao),
+      alturaUtil: parseDecimal(structureForm.alturaUtil),
+      vanFrente: parseDecimal(structureForm.vanFrente),
+      cotaCentro: parseDecimal(structureForm.cotaCentro),
       lt: structureForm.lt,
       voltage: structureForm.voltage,
       cadeiaCondutor: structureForm.cadeiaCondutor,
@@ -1247,7 +1259,7 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
             {/* Coordenadas */}
             <div className="mb-4">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> Coordenadas UTM (Zona 25S, WGS84)
+                <MapPin className="w-3.5 h-3.5" /> Coordenadas UTM (Zona 23S, WGS84)
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1255,18 +1267,18 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    value={structureForm.coordX === 0 ? '' : String(structureForm.coordX)}
-                    onChange={(e) => setStructureForm((f) => ({ ...f, coordX: parseFloat(e.target.value) || 0 }))}
+                    value={structureForm.coordX}
+                    onChange={(e) => setStructureForm((f) => ({ ...f, coordX: e.target.value }))}
                     onPaste={(e) => {
                       const text = e.clipboardData.getData('text');
-                      const parts = text.trim().split(/[\s,;]+/).filter(Boolean);
-                      if (parts.length >= 2) {
-                        const a = parseFloat(parts[0]);
-                        const b = parseFloat(parts[1]);
-                        if (!isNaN(a) && !isNaN(b)) {
-                          e.preventDefault();
-                          setStructureForm((f) => ({ ...f, coordY: a, coordX: b }));
-                        }
+                      // Divide em pares de coordenadas por espaço/;/vírgula-seguida-de-espaço,
+                      // mas preserva uma vírgula "colada" a dígitos (ex.: "748000,25") como
+                      // separador decimal, não como separador entre dois valores.
+                      const looksNumeric = (s: string) => /^-?[\d.,]+$/.test(s.trim());
+                      const parts = text.trim().split(/[\s;]+|,\s+/).filter(Boolean);
+                      if (parts.length >= 2 && looksNumeric(parts[0]) && looksNumeric(parts[1])) {
+                        e.preventDefault();
+                        setStructureForm((f) => ({ ...f, coordY: parts[0], coordX: parts[1] }));
                       }
                     }}
                     placeholder="748000"
@@ -1277,18 +1289,15 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    value={structureForm.coordY === 0 ? '' : String(structureForm.coordY)}
-                    onChange={(e) => setStructureForm((f) => ({ ...f, coordY: parseFloat(e.target.value) || 0 }))}
+                    value={structureForm.coordY}
+                    onChange={(e) => setStructureForm((f) => ({ ...f, coordY: e.target.value }))}
                     onPaste={(e) => {
                       const text = e.clipboardData.getData('text');
-                      const parts = text.trim().split(/[\s,;]+/).filter(Boolean);
-                      if (parts.length >= 2) {
-                        const a = parseFloat(parts[0]);
-                        const b = parseFloat(parts[1]);
-                        if (!isNaN(a) && !isNaN(b)) {
-                          e.preventDefault();
-                          setStructureForm((f) => ({ ...f, coordY: a, coordX: b }));
-                        }
+                      const looksNumeric = (s: string) => /^-?[\d.,]+$/.test(s.trim());
+                      const parts = text.trim().split(/[\s;]+|,\s+/).filter(Boolean);
+                      if (parts.length >= 2 && looksNumeric(parts[0]) && looksNumeric(parts[1])) {
+                        e.preventDefault();
+                        setStructureForm((f) => ({ ...f, coordY: parts[0], coordX: parts[1] }));
                       }
                     }}
                     placeholder="-9580000"
@@ -1303,23 +1312,23 @@ export function SuperAdmApp({ user, onLogout }: SuperAdmAppProps) {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-gray-600 mb-1 block">Progressiva (m)</label>
-                  <Input type="number" value={structureForm.progressiva} onChange={(e) => setStructureForm((f) => ({ ...f, progressiva: Number(e.target.value) }))} />
+                  <Input type="text" inputMode="decimal" value={structureForm.progressiva} onChange={(e) => setStructureForm((f) => ({ ...f, progressiva: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-600 mb-1 block">Deflexão (°)</label>
-                  <Input type="number" step="0.1" value={structureForm.deflexao} onChange={(e) => setStructureForm((f) => ({ ...f, deflexao: Number(e.target.value) }))} />
+                  <Input type="text" inputMode="decimal" value={structureForm.deflexao} onChange={(e) => setStructureForm((f) => ({ ...f, deflexao: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-600 mb-1 block">Altura Útil (m)</label>
-                  <Input type="number" step="0.1" value={structureForm.alturaUtil} onChange={(e) => setStructureForm((f) => ({ ...f, alturaUtil: Number(e.target.value) }))} />
+                  <Input type="text" inputMode="decimal" value={structureForm.alturaUtil} onChange={(e) => setStructureForm((f) => ({ ...f, alturaUtil: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-600 mb-1 block">Vão à Frente (m)</label>
-                  <Input type="number" step="0.1" value={structureForm.vanFrente} onChange={(e) => setStructureForm((f) => ({ ...f, vanFrente: Number(e.target.value) }))} />
+                  <Input type="text" inputMode="decimal" value={structureForm.vanFrente} onChange={(e) => setStructureForm((f) => ({ ...f, vanFrente: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-600 mb-1 block">Cota Centro (m)</label>
-                  <Input type="number" step="0.1" value={structureForm.cotaCentro} onChange={(e) => setStructureForm((f) => ({ ...f, cotaCentro: Number(e.target.value) }))} />
+                  <Input type="text" inputMode="decimal" value={structureForm.cotaCentro} onChange={(e) => setStructureForm((f) => ({ ...f, cotaCentro: e.target.value }))} />
                 </div>
                 <div className="flex items-end pb-1">
                   <label className="flex items-center gap-2 cursor-pointer">
